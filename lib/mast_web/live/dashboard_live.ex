@@ -34,6 +34,11 @@ defmodule MastWeb.DashboardLive do
     {:noreply, assign(socket, :servers, servers)}
   end
 
+  def handle_info({:server_deleted, id}, socket) do
+    servers = Enum.reject(socket.assigns.servers, &(&1.id == id))
+    {:noreply, assign(socket, :servers, servers)}
+  end
+
   # The "servers" topic also carries per-server scan/probe/run events meant for
   # MastWeb.ServerLive. Ignore them here rather than crashing the dashboard.
   def handle_info(_other, socket), do: {:noreply, socket}

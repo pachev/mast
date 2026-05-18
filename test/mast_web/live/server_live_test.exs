@@ -147,6 +147,57 @@ defmodule MastWeb.ServerLiveTest do
       assert html =~ "sudo: a password is required"
     end
 
+    test "settings tab shows a Danger Zone with a Remove button", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "zulu", host: "10.0.0.99"})
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}?tab=settings")
+
+      assert html =~ "Danger zone"
+      assert html =~ "Remove Server"
+    end
+
+    test "remove flow requires typing the server name, then deletes + redirects",
+         %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "doomed", host: "10.0.0.77"})
+
+      {:ok, view, _html} = live(conn, ~p"/servers/#{server}?tab=settings")
+
+      # Open the confirm modal.
+      html = view |> element("button", "Remove Server") |> render_click()
+      assert html =~ "Type the server name to confirm"
+
+      # Wrong text -> button disabled, server still here.
+      _ = view |> form("#confirm-delete-form", %{confirm: %{name: "nope"}}) |> render_change()
+      assert Mast.Fleet.get_server!(server.id)
+
+      # Cancel keeps server intact and closes modal.
+      html = view |> element("button", "Cancel") |> render_click()
+      refute html =~ "Type the server name to confirm"
+      assert Mast.Fleet.get_server!(server.id)
+
+      # Reopen, type correct name, submit -> redirect to /.
+      _ = view |> element("button", "Remove Server") |> render_click()
+      _ = view |> form("#confirm-delete-form", %{confirm: %{name: "doomed"}}) |> render_change()
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               view |> form("#confirm-delete-form") |> render_submit()
+
+      assert_raise Ecto.NoResultsError, fn -> Mast.Fleet.get_server!(server.id) end
+    end
+
+    test "dashboard removes the row on :server_deleted broadcast", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "ghost", host: "10.0.0.66"})
+
+      {:ok, view, html} = live(conn, ~p"/")
+      assert html =~ "ghost"
+
+      {:ok, _} = Mast.Fleet.delete_server(server)
+
+      # delete_server should broadcast :server_deleted on the "servers" topic.
+      html = render(view)
+      refute html =~ "ghost"
+    end
+
     test "live log pane shows streamed events", %{conn: conn} do
       {:ok, server} = Fleet.create_server(%{name: "delta", host: "10.0.0.10"})
 

@@ -35,6 +35,8 @@ defmodule MastWeb.ServerLive do
      |> assign(:apps, Apps.list_for_server(server.id))
      |> assign(:show_system_apps?, false)
      |> assign(:monitoring_form, monitoring_form(server))
+     |> assign(:confirm_delete?, false)
+     |> assign(:confirm_name, "")
      |> stream(:log, [])
      |> assign(:log_count, 0)
      |> assign(:activity, load_activity(server.id))}
@@ -68,6 +70,17 @@ defmodule MastWeb.ServerLive do
        |> assign(:scanning?, false)
        |> assign(:scan_error, nil)
        |> assign(:activity, load_activity(server.id))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:server_deleted, id}, socket) do
+    if id == socket.assigns.server.id do
+      {:noreply,
+       socket
+       |> put_flash(:info, "Server removed.")
+       |> push_navigate(to: ~p"/")}
     else
       {:noreply, socket}
     end
@@ -176,6 +189,43 @@ defmodule MastWeb.ServerLive do
 
       {:error, cs} ->
         {:noreply, assign(socket, :monitoring_form, to_form(cs, as: :monitoring))}
+    end
+  end
+
+  def handle_event("open-delete-confirm", _, socket) do
+    {:noreply,
+     socket
+     |> assign(:confirm_delete?, true)
+     |> assign(:confirm_name, "")}
+  end
+
+  def handle_event("cancel-delete", _, socket) do
+    {:noreply,
+     socket
+     |> assign(:confirm_delete?, false)
+     |> assign(:confirm_name, "")}
+  end
+
+  def handle_event("validate-delete", %{"confirm" => %{"name" => name}}, socket) do
+    {:noreply, assign(socket, :confirm_name, name)}
+  end
+
+  def handle_event("delete-server", %{"confirm" => %{"name" => name}}, socket) do
+    server = socket.assigns.server
+
+    if name == server.name do
+      case Fleet.delete_server(server) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Server #{server.name} removed.")
+           |> push_navigate(to: ~p"/")}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not remove server.")}
+      end
+    else
+      {:noreply, socket}
     end
   end
 
@@ -337,7 +387,12 @@ defmodule MastWeb.ServerLive do
             scan_error={@scan_error}
           />
         <% "settings" -> %>
-          <.settings_tab server={@server} monitoring_form={@monitoring_form} />
+          <.settings_tab
+            server={@server}
+            monitoring_form={@monitoring_form}
+            confirm_delete?={@confirm_delete?}
+            confirm_name={@confirm_name}
+          />
       <% end %>
     </Layouts.app>
     """
@@ -908,6 +963,8 @@ defmodule MastWeb.ServerLive do
 
   attr :server, :map, required: true
   attr :monitoring_form, :any, required: true
+  attr :confirm_delete?, :boolean, required: true
+  attr :confirm_name, :string, required: true
 
   defp settings_tab(assigns) do
     ~H"""
@@ -958,6 +1015,59 @@ defmodule MastWeb.ServerLive do
           </div>
         </.form>
       </.ui_card>
+
+      <div class="rounded-[var(--radius-box)] border border-[var(--mast-status-offline)] bg-[var(--mast-bg-card)] p-6">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-[var(--mast-status-offline)]">Danger zone</h3>
+            <p class="text-xs text-[var(--mast-font-secondary)] mt-1">
+              Removing this server will delete all associated data, including update history, audit logs, and app monitoring configuration. This action cannot be undone.
+            </p>
+          </div>
+          <.ui_button
+            variant="destructive"
+            size="sm"
+            icon="hero-trash"
+            phx-click="open-delete-confirm"
+          >
+            Remove Server
+          </.ui_button>
+        </div>
+      </div>
+
+      <.ui_modal :if={@confirm_delete?} id="confirm-delete" on_cancel={JS.push("cancel-delete")}>
+        <:title>Remove {@server.name}?</:title>
+        <:subtitle>
+          This permanently deletes the server and all of its history. Type the server name to confirm.
+        </:subtitle>
+
+        <.form
+          for={%{}}
+          as={:confirm}
+          id="confirm-delete-form"
+          phx-change="validate-delete"
+          phx-submit="delete-server"
+          class="space-y-3"
+        >
+          <input
+            type="text"
+            name="confirm[name]"
+            value={@confirm_name}
+            autocomplete="off"
+            placeholder={@server.name}
+            class="w-full font-mono text-sm bg-[var(--mast-bg-input)] border border-[var(--mast-border)] rounded-[var(--radius-field)] px-3 py-2 text-[var(--mast-font-primary)] focus:outline-none focus:border-[var(--mast-accent)]"
+          />
+
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <.ui_button type="button" variant="secondary" phx-click="cancel-delete">
+              Cancel
+            </.ui_button>
+            <.ui_button type="submit" variant="destructive" disabled={@confirm_name != @server.name}>
+              Remove Server
+            </.ui_button>
+          </div>
+        </.form>
+      </.ui_modal>
     </div>
     """
   end

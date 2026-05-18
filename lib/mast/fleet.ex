@@ -53,8 +53,12 @@ defmodule Mast.Fleet do
     })
     |> Repo.transaction()
     |> case do
-      {:ok, %{server: s}} -> {:ok, s}
-      {:error, :server, changeset, _} -> {:error, changeset}
+      {:ok, %{server: s}} ->
+        Phoenix.PubSub.broadcast(Mast.PubSub, "servers", {:server_deleted, s.id})
+        {:ok, s}
+
+      {:error, :server, changeset, _} ->
+        {:error, changeset}
     end
   end
 
