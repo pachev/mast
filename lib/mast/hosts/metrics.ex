@@ -64,4 +64,28 @@ defmodule Mast.Hosts.Metrics do
       end
     end)
   end
+
+  @doc """
+  Parses `/proc/loadavg`. The line is five whitespace-separated fields:
+
+      0.42 0.55 0.61 2/123 12345
+
+  Only the first three (1/5/15 minute averages) are returned.
+  """
+  @spec parse_load_avg(String.t()) :: %{load_1: float(), load_5: float(), load_15: float()} | nil
+  def parse_load_avg(output) when is_binary(output) do
+    case output |> String.split() |> Enum.take(3) do
+      [a, b, c] ->
+        with {l1, _} <- Float.parse(a),
+             {l5, _} <- Float.parse(b),
+             {l15, _} <- Float.parse(c) do
+          %{load_1: l1, load_5: l5, load_15: l15}
+        else
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
 end

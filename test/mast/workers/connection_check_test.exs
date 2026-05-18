@@ -33,11 +33,14 @@ defmodule Mast.Workers.ConnectionCheckTest do
     :ok
   end
 
+  @loadavg_out "0.42 0.55 0.61 2/123 12345\n"
+
   defp stub_healthy(server) do
     Stub.expect(server, "cat /etc/os-release", {:ok, @os_out})
     Stub.expect(server, "top -bn1 | head -3", {:ok, @top_out})
     Stub.expect(server, "free -m", {:ok, @free_out})
     Stub.expect(server, "df -h /", {:ok, @df_out})
+    Stub.expect(server, "cat /proc/loadavg", {:ok, @loadavg_out})
   end
 
   describe "perform/1 with server_id" do
@@ -54,6 +57,9 @@ defmodule Mast.Workers.ConnectionCheckTest do
       assert reloaded.cpu == 10.0
       assert reloaded.memory == 25.0
       assert reloaded.disk == 26.0
+      assert reloaded.load_1 == 0.42
+      assert reloaded.load_5 == 0.55
+      assert reloaded.load_15 == 0.61
       assert reloaded.last_seen_at
       assert reloaded.unreachable_count == 0
     end

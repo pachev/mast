@@ -5,6 +5,7 @@ defmodule MastWeb.ServerLive do
   alias Mast.Fleet.Server
   alias Mast.Patches.Apt
   alias Mast.Workers.{ApplyUpdates, AppProbe, ConnectionCheck, PatchScan}
+  alias MastWeb.Audit.Presenter
 
   @tabs ~w(overview apps logs updates settings)
 
@@ -35,7 +36,12 @@ defmodule MastWeb.ServerLive do
      |> assign(:show_system_apps?, false)
      |> assign(:monitoring_form, monitoring_form(server))
      |> stream(:log, [])
-     |> assign(:log_count, 0)}
+     |> assign(:log_count, 0)
+     |> assign(:activity, load_activity(server.id))}
+  end
+
+  defp load_activity(server_id) do
+    Mast.Audit.list_for_subject("Server", server_id, 10)
   end
 
   defp monitoring_form(server) do
@@ -60,7 +66,8 @@ defmodule MastWeb.ServerLive do
        socket
        |> assign(:server, server)
        |> assign(:scanning?, false)
-       |> assign(:scan_error, nil)}
+       |> assign(:scan_error, nil)
+       |> assign(:activity, load_activity(server.id))}
     else
       {:noreply, socket}
     end
@@ -310,6 +317,7 @@ defmodule MastWeb.ServerLive do
             streams={@streams}
             log_count={@log_count}
             apps={@apps}
+            activity={@activity}
           />
         <% "apps" -> %>
           <.apps_tab
@@ -427,6 +435,7 @@ defmodule MastWeb.ServerLive do
   attr :streams, :map, required: true
   attr :log_count, :integer, required: true
   attr :apps, :list, required: true
+  attr :activity, :list, required: true
 
   defp overview_tab(assigns) do
     ~H"""
@@ -439,9 +448,9 @@ defmodule MastWeb.ServerLive do
       />
       <.ui_stat label="Disk" value={format_pct(@server.disk)} sub="of total" />
       <.ui_stat
-        label="Uptime"
-        value={uptime_label(@server)}
-        sub="last reboot"
+        label="Load Avg"
+        value={load_avg_label(@server)}
+        sub={load_avg_sub(@server)}
       />
     </section>
 
@@ -480,13 +489,15 @@ defmodule MastWeb.ServerLive do
         <:header>
           <div class="flex items-center justify-between gap-3 w-full">
             <div>
-              <h2 class="text-base font-semibold text-[var(--mast-font-primary)]">Recent Logs</h2>
+              <h2 class="text-base font-semibold text-[var(--mast-font-primary)]">
+                Recent Activity
+              </h2>
               <p class="text-xs text-[var(--mast-font-secondary)] mt-1">
-                Latest activity from the run stream
+                Recent audit events for this server
               </p>
             </div>
             <.link
-              patch={~p"/servers/#{@server.id}?tab=logs"}
+              navigate={~p"/audit"}
               class="text-xs text-[var(--mast-accent)] hover:underline shrink-0"
             >
               View all →
@@ -494,23 +505,30 @@ defmodule MastWeb.ServerLive do
           </div>
         </:header>
 
-        <div class="bg-[var(--mast-bg-input)] mast-scroll max-h-72 overflow-y-auto">
+        <div class="max-h-72 overflow-y-auto">
           <div
-            :if={@log_count == 0}
+            :if={@activity == []}
             class="px-4 py-8 text-center text-xs text-[var(--mast-font-tertiary)] italic"
           >
-            idle — output will appear here when an upgrade runs
+            No activity yet for this server.
           </div>
-          <div id="recent-log" phx-update="stream" class="py-2">
-            <div :for={{dom_id, line} <- @streams.log} id={dom_id}>
-              <.ui_log_entry kind={line.kind}>{line.data}</.ui_log_entry>
-            </div>
-          </div>
+
+          <.ui_audit_row
+            :for={e <- present_activity(@activity)}
+            variant={e.variant}
+            actor={e.actor}
+            verb={e.verb}
+            target={e.target}
+            time={e.time}
+            detail={e.detail}
+          />
         </div>
       </.ui_card>
     </section>
     """
   end
+
+  defp present_activity(events), do: Enum.map(events, &Presenter.present/1)
 
   # ----- Apps tab -----------------------------------------------------------
 
@@ -975,7 +993,18 @@ defmodule MastWeb.ServerLive do
   defp cpu_sub(n) when is_number(n) and n >= 80, do: "high load"
   defp cpu_sub(_), do: "of capacity"
 
-  defp uptime_label(_), do: "—"
+  defp load_avg_label(%{load_1: l1, load_5: l5, load_15: l15})
+       when is_number(l1) and is_number(l5) and is_number(l15) do
+    "#{fmt_load(l1)} #{fmt_load(l5)} #{fmt_load(l15)}"
+  end
+
+  defp load_avg_label(_), do: "—"
+
+  defp load_avg_sub(%{load_1: l1}) when is_number(l1), do: "1m / 5m / 15m"
+  defp load_avg_sub(_), do: "no data"
+
+  defp fmt_load(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 2)
+  defp fmt_load(n), do: to_string(n)
 
   defp overview_apps_meta(_, %{release_command: rc}) when rc in [nil, ""], do: "not configured"
   defp overview_apps_meta([], _), do: "no apps yet"

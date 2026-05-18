@@ -18,6 +18,34 @@ defmodule MastWeb.ServerLiveTest do
       assert html =~ "Apply Updates"
     end
 
+    test "overview shows a Recent Activity card scoped to this server", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "with-activity", host: "10.0.0.50"})
+      {:ok, other} = Fleet.create_server(%{name: "noisy", host: "10.0.0.51"})
+
+      {:ok, _} =
+        Mast.Audit.log(%{
+          event_type: "scan.run",
+          subject_type: "Server",
+          subject_id: server.id,
+          metadata: %{"outcome" => "ok", "updates_available" => 3, "server_name" => server.name}
+        })
+
+      {:ok, _} =
+        Mast.Audit.log(%{
+          event_type: "scan.run",
+          subject_type: "Server",
+          subject_id: other.id,
+          metadata: %{"outcome" => "ok", "updates_available" => 99, "server_name" => other.name}
+        })
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+
+      assert html =~ "Recent Activity"
+      assert html =~ "3 packages available"
+      # Other server's activity must not leak in.
+      refute html =~ "99 packages available"
+    end
+
     test "shows scan results when present", %{conn: conn} do
       {:ok, server} = Fleet.create_server(%{name: "beta", host: "10.0.0.8"})
 
@@ -122,9 +150,9 @@ defmodule MastWeb.ServerLiveTest do
     test "live log pane shows streamed events", %{conn: conn} do
       {:ok, server} = Fleet.create_server(%{name: "delta", host: "10.0.0.10"})
 
-      {:ok, view, _html} = live(conn, ~p"/servers/#{server}")
+      # Logs render on the Logs tab now; the overview shows Recent Activity instead.
+      {:ok, view, _html} = live(conn, ~p"/servers/#{server}?tab=logs")
 
-      # Grab the run_id the LV created on mount by digging into assigns.
       run_id = :sys.get_state(view.pid).socket.assigns.run_id
 
       Phoenix.PubSub.broadcast(

@@ -77,6 +77,27 @@ defmodule Mast.AuditTest do
     end
   end
 
+  describe "list_for_subject/3" do
+    test "returns only events matching the subject, newest first" do
+      Audit.log(%{event_type: "a", subject_type: "Server", subject_id: 1})
+      Audit.log(%{event_type: "b", subject_type: "Server", subject_id: 1})
+      Audit.log(%{event_type: "c", subject_type: "Server", subject_id: 2})
+
+      events = Audit.list_for_subject("Server", 1, 10)
+      assert length(events) == 2
+      assert Enum.all?(events, &(&1.subject_id == 1))
+      assert hd(events).event_type == "b"
+    end
+
+    test "honors the limit" do
+      for n <- 1..5 do
+        Audit.log(%{event_type: "e#{n}", subject_type: "Server", subject_id: 7})
+      end
+
+      assert length(Audit.list_for_subject("Server", 7, 3)) == 3
+    end
+  end
+
   describe "list_recent/1" do
     test "returns events newest first up to the limit" do
       for n <- 1..5 do

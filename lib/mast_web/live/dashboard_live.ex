@@ -5,6 +5,7 @@ defmodule MastWeb.DashboardLive do
   alias Mast.Fleet.Server
   alias Mast.Keys
   alias Mast.Keys.PrivateKey
+  alias Mast.Workers.ConnectionCheck
 
   @impl true
   def mount(_params, _session, socket) do
@@ -75,7 +76,7 @@ defmodule MastWeb.DashboardLive do
         # Run a connection check now instead of waiting up to a minute for
         # the next cron tick. The card stays greyed out until we have metrics.
         %{server_id: server.id}
-        |> Mast.Workers.ConnectionCheck.new()
+        |> ConnectionCheck.new()
         |> Oban.insert()
 
         {:noreply,

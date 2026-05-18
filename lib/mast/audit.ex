@@ -68,4 +68,14 @@ defmodule Mast.Audit do
     |> limit(^limit)
     |> Repo.all()
   end
+
+  @doc "Returns audit events for a single (subject_type, subject_id), newest first."
+  def list_for_subject(subject_type, subject_id, limit \\ 20)
+      when is_binary(subject_type) and is_integer(subject_id) and is_integer(limit) and limit > 0 do
+    Event
+    |> where([e], e.subject_type == ^subject_type and e.subject_id == ^subject_id)
+    |> order_by([e], desc: e.inserted_at)
+    |> limit(^limit)
+    |> Repo.all()
+  end
 end

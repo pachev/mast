@@ -1281,7 +1281,10 @@ defmodule MastWeb.Components.UI do
 
   def ui_audit_row(assigns) do
     ~H"""
-    <div class="flex items-center gap-3 px-4 py-3 border-b border-[var(--mast-border)] last:border-0 hover:bg-[var(--mast-bg-card-hover)]">
+    <div class={[
+      "flex items-center gap-3 px-4 py-3 border-b border-[var(--mast-border)] last:border-0 hover:bg-[var(--mast-bg-card-hover)]",
+      audit_row_bg(@variant)
+    ]}>
       <div class="size-8 rounded-full bg-[var(--mast-bg-tertiary)] flex items-center justify-center shrink-0">
         <span class={[audit_icon(@variant), "size-4", audit_icon_color(@variant)]} />
       </div>
@@ -1309,6 +1312,11 @@ defmodule MastWeb.Components.UI do
   defp audit_icon("failure"), do: "hero-exclamation-triangle"
   defp audit_icon("key-create"), do: "hero-key"
   defp audit_icon(_), do: "hero-bolt"
+
+  # Matches the pencil design: failure + delete rows get a subtle rose tint.
+  defp audit_row_bg("failure"), do: "bg-rose-50/70 dark:bg-rose-950/20"
+  defp audit_row_bg("delete"), do: "bg-rose-50/70 dark:bg-rose-950/20"
+  defp audit_row_bg(_), do: ""
 
   defp audit_icon_color("failure"), do: "text-[var(--mast-status-offline)]"
   defp audit_icon_color("delete"), do: "text-[var(--mast-status-offline)]"

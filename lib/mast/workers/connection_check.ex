@@ -54,8 +54,10 @@ defmodule Mast.Workers.ConnectionCheck do
     with {:ok, os} <- SSH.run(server, "cat /etc/os-release"),
          {:ok, top} <- SSH.run(server, "top -bn1 | head -3"),
          {:ok, free} <- SSH.run(server, "free -m"),
-         {:ok, df} <- SSH.run(server, "df -h /") do
+         {:ok, df} <- SSH.run(server, "df -h /"),
+         {:ok, loadavg} <- SSH.run(server, "cat /proc/loadavg") do
       os_info = OS.parse(os)
+      load = Metrics.parse_load_avg(loadavg) || %{}
 
       {:ok,
        %{
@@ -63,7 +65,10 @@ defmodule Mast.Workers.ConnectionCheck do
          package_manager: os_info.package_manager,
          cpu: Metrics.parse_cpu(top),
          memory: Metrics.parse_memory(free),
-         disk: Metrics.parse_disk(df)
+         disk: Metrics.parse_disk(df),
+         load_1: Map.get(load, :load_1),
+         load_5: Map.get(load, :load_5),
+         load_15: Map.get(load, :load_15)
        }}
     end
   end

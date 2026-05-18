@@ -56,4 +56,26 @@ defmodule Mast.Hosts.MetricsTest do
       assert Metrics.parse_disk("nope") == nil
     end
   end
+
+  describe "parse_load_avg/1 (/proc/loadavg)" do
+    test "parses the three load averages from a standard line" do
+      assert Metrics.parse_load_avg("0.42 0.55 0.61 2/123 12345\n") ==
+               %{load_1: 0.42, load_5: 0.55, load_15: 0.61}
+    end
+
+    test "handles zeroed-out idle machines" do
+      assert Metrics.parse_load_avg("0.00 0.00 0.00 1/100 999\n") ==
+               %{load_1: 0.0, load_5: 0.0, load_15: 0.0}
+    end
+
+    test "tolerates missing trailing newline" do
+      assert Metrics.parse_load_avg("1.20 0.80 0.40 1/1 1") ==
+               %{load_1: 1.20, load_5: 0.80, load_15: 0.40}
+    end
+
+    test "returns nil for malformed input" do
+      assert Metrics.parse_load_avg("nope") == nil
+      assert Metrics.parse_load_avg("") == nil
+    end
+  end
 end
