@@ -29,8 +29,11 @@ defmodule Mast.VaultTest do
   test "decrypt does not return plaintext on tampered ciphertext" do
     {:ok, ct} = Vault.encrypt("secret")
 
-    # Flip the last byte (the AES-GCM auth tag).
-    tampered = :binary.part(ct, 0, byte_size(ct) - 1) <> <<0>>
+    # Flip the last byte of the AES-GCM auth tag. XOR with 0xFF so it's
+    # guaranteed to differ from the original (using a fixed value like <<0>>
+    # would collide 1-in-256 of the time and let the tag verify).
+    last = :binary.at(ct, byte_size(ct) - 1)
+    tampered = :binary.part(ct, 0, byte_size(ct) - 1) <> <<Bitwise.bxor(last, 0xFF)>>
 
     # Cloak's contract: on auth failure it returns {:ok, :error} rather than
     # an error tuple. Either way, callers must never receive the plaintext.

@@ -7,8 +7,8 @@ defmodule Mast.Fleet do
   """
   import Ecto.Query, warn: false
 
-  alias Mast.Repo
   alias Mast.Fleet.Server
+  alias Mast.Repo
 
   @doc "Returns all servers, ordered by name."
   def list_servers do

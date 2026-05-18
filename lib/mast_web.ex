@@ -85,8 +85,8 @@ defmodule MastWeb do
       import MastWeb.Components.UI
 
       # Common modules used in templates
-      alias Phoenix.LiveView.JS
       alias MastWeb.Layouts
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

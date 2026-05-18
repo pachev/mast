@@ -28,6 +28,7 @@ defmodule Mast.Workers.ApplyUpdates do
   alias Mast.Fleet
   alias Mast.Patches.Apt
   alias Mast.SSH
+  alias Mast.Workers.PatchScan
 
   @impl Oban.Worker
   def perform(%Oban.Job{
@@ -84,7 +85,7 @@ defmodule Mast.Workers.ApplyUpdates do
 
   defp enqueue_rescan(server) do
     %{server_id: server.id}
-    |> Mast.Workers.PatchScan.new()
+    |> PatchScan.new()
     |> Oban.insert()
   end
 end

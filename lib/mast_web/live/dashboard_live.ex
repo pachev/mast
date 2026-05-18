@@ -29,6 +29,10 @@ defmodule MastWeb.DashboardLive do
     {:noreply, assign(socket, :servers, servers)}
   end
 
+  # The "servers" topic also carries per-server scan/probe/run events meant for
+  # MastWeb.ServerLive. Ignore them here rather than crashing the dashboard.
+  def handle_info(_other, socket), do: {:noreply, socket}
+
   @impl true
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}

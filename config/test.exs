@@ -6,10 +6,10 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :mast, Mast.Repo,
-  username: "mast",
-  password: "mast",
-  hostname: "localhost",
-  port: 7544,
+  username: System.get_env("POSTGRES_USER", "mast"),
+  password: System.get_env("POSTGRES_PASSWORD", "mast"),
+  hostname: System.get_env("POSTGRES_HOST", "localhost"),
+  port: String.to_integer(System.get_env("POSTGRES_PORT", "7544")),
   database: "mast_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2

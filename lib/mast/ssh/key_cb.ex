@@ -39,20 +39,16 @@ defmodule Mast.SSH.KeyCb do
   end
 
   defp safe_pem_decode(pem) do
-    try do
-      :public_key.pem_decode(pem)
-    rescue
-      _ -> []
-    end
+    :public_key.pem_decode(pem)
+  rescue
+    _ -> []
   end
 
   # Classic PEMs (`-----BEGIN RSA PRIVATE KEY-----`) get a tagged ASN.1 entry.
   defp decode_entry({tag, der, :not_encrypted}) when is_atom(tag) do
-    try do
-      {:ok, :public_key.der_decode(tag, der)}
-    rescue
-      _ -> :error
-    end
+    {:ok, :public_key.der_decode(tag, der)}
+  rescue
+    _ -> :error
   end
 
   # OpenSSH new format (`-----BEGIN OPENSSH PRIVATE KEY-----`). Erlang's

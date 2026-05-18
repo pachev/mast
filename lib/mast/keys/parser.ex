@@ -115,16 +115,14 @@ defmodule Mast.Keys.Parser do
   #   ssh-mpint  e
   #   ssh-mpint  n
   defp der_to_rsa_pub_blob(der) do
-    try do
-      rsa = :public_key.der_decode(:RSAPrivateKey, der)
-      # RSAPrivateKey is a record; positionally: version, modulus, publicExponent, ...
-      n = elem(rsa, 2)
-      e = elem(rsa, 3)
-      blob = ssh_string_encode("ssh-rsa") <> ssh_mpint(e) <> ssh_mpint(n)
-      {:ok, blob}
-    rescue
-      _ -> :error
-    end
+    rsa = :public_key.der_decode(:RSAPrivateKey, der)
+    # RSAPrivateKey is a record; positionally: version, modulus, publicExponent, ...
+    n = elem(rsa, 2)
+    e = elem(rsa, 3)
+    blob = ssh_string_encode("ssh-rsa") <> ssh_mpint(e) <> ssh_mpint(n)
+    {:ok, blob}
+  rescue
+    _ -> :error
   end
 
   defp ssh_string_encode(bin) when is_binary(bin), do: <<byte_size(bin)::32, bin::binary>>
@@ -134,20 +132,20 @@ defmodule Mast.Keys.Parser do
   defp ssh_mpint(0), do: <<0::32>>
 
   defp ssh_mpint(n) when is_integer(n) and n > 0 do
-    bytes = :binary.encode_unsigned(n)
-    bytes = if <<msb, _::binary>> = bytes, do: maybe_pad(bytes, msb), else: bytes
+    bytes = pad_mpint(:binary.encode_unsigned(n))
     <<byte_size(bytes)::32, bytes::binary>>
   end
+
+  defp pad_mpint(<<msb, _::binary>> = bytes), do: maybe_pad(bytes, msb)
+  defp pad_mpint(bytes), do: bytes
 
   defp maybe_pad(bytes, msb) when msb >= 0x80, do: <<0, bytes::binary>>
   defp maybe_pad(bytes, _), do: bytes
 
   defp safe_pem_decode(pem) do
-    try do
-      :public_key.pem_decode(pem)
-    rescue
-      _ -> []
-    end
+    :public_key.pem_decode(pem)
+  rescue
+    _ -> []
   end
 
   defp ssh_string(<<len::32, str::binary-size(len), rest::binary>>), do: {:ok, str, rest}

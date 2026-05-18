@@ -14,6 +14,7 @@ defmodule Mast.SSH.SSHKit do
   @behaviour Mast.SSH
 
   alias Mast.Fleet.Server
+  alias SSHKit.SSH.Connection
 
   @impl true
   def run(%Server{} = server, command) when is_binary(command) do
@@ -41,7 +42,7 @@ defmodule Mast.SSH.SSHKit do
     server = Mast.SSH.preload_key(server)
     opts = connect_opts(server, :infinity)
 
-    case SSHKit.SSH.Connection.open(server.host, opts) do
+    case Connection.open(server.host, opts) do
       {:ok, conn} ->
         # Track {caller_acc, exit_code | nil} through the loop so we can emit
         # a final {:exit, code} event after closure.
@@ -54,7 +55,7 @@ defmodule Mast.SSH.SSHKit do
             timeout: :infinity
           )
 
-        :ok = SSHKit.SSH.Connection.close(conn)
+        :ok = Connection.close(conn)
 
         case result do
           {final_acc, code} when is_integer(code) -> reducer.({:exit, code}, final_acc)

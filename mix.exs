@@ -66,7 +66,8 @@ defmodule Mast.MixProject do
       {:sshkit, "~> 0.3"},
       {:oban, "~> 2.22"},
       {:cloak, "~> 1.1"},
-      {:cloak_ecto, "~> 1.3"}
+      {:cloak_ecto, "~> 1.3"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -89,7 +90,13 @@ defmodule Mast.MixProject do
         "esbuild mast --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "credo --strict",
+        "test"
+      ]
     ]
   end
 end

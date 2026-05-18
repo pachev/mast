@@ -2,6 +2,7 @@ defmodule MastWeb.ServerLive do
   use MastWeb, :live_view
 
   alias Mast.{Apps, Fleet}
+  alias Mast.Fleet.Server
   alias Mast.Patches.Apt
   alias Mast.Workers.{ApplyUpdates, AppProbe, ConnectionCheck, PatchScan}
 
@@ -39,7 +40,7 @@ defmodule MastWeb.ServerLive do
 
   defp monitoring_form(server) do
     server
-    |> Mast.Fleet.Server.monitoring_changeset(%{})
+    |> Server.monitoring_changeset(%{})
     |> to_form(as: :monitoring)
   end
 
@@ -240,7 +241,10 @@ defmodule MastWeb.ServerLive do
       <header class="-mx-6 lg:-mx-10 -mt-6 lg:-mt-8 mb-6 px-6 lg:px-10 pt-4 pb-0 border-b border-[var(--mast-border)]">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <nav class="flex items-center gap-1.5 text-[13px]">
-            <.link navigate={~p"/"} class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]">
+            <.link
+              navigate={~p"/"}
+              class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]"
+            >
               Servers
             </.link>
             <span class="text-[var(--mast-font-tertiary)]">/</span>
@@ -899,8 +903,10 @@ defmodule MastWeb.ServerLive do
       <.ui_card>
         <:title>App monitoring</:title>
         <:subtitle>
-          Path to a mix release's <code class="font-mono">bin/&lt;name&gt;</code> script.
-          Mast invokes <code class="font-mono">&lt;path&gt; rpc</code> over SSH to read running applications.
+          Path to a mix release's <code class="font-mono">bin/&lt;name&gt;</code>
+          script.
+          Mast invokes <code class="font-mono">&lt;path&gt; rpc</code>
+          over SSH to read running applications.
         </:subtitle>
 
         <.form
@@ -1005,5 +1011,4 @@ defmodule MastWeb.ServerLive do
       true -> "#{div(diff, 86_400)}d ago"
     end
   end
-
 end

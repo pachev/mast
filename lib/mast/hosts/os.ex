@@ -26,22 +26,35 @@ defmodule Mast.Hosts.OS do
   @spec package_manager(String.t() | nil) :: String.t() | nil
   def package_manager(nil), do: nil
 
-  def package_manager(id) do
-    type =
-      case id do
-        i when i in ~w(manjaro manjaro-arm endeavouros) -> "arch"
-        i when i in ~w(pop linuxmint zorin) -> "ubuntu"
-        "fedora-asahi-remix" -> "fedora"
-        other -> other
-      end
+  @aliases %{
+    "manjaro" => "arch",
+    "manjaro-arm" => "arch",
+    "endeavouros" => "arch",
+    "pop" => "ubuntu",
+    "linuxmint" => "ubuntu",
+    "zorin" => "ubuntu",
+    "fedora-asahi-remix" => "fedora"
+  }
 
-    case type do
-      t when t in ~w(ubuntu debian raspbian) -> "apt"
-      t when t in ~w(fedora rocky rhel ol amzn centos almalinux) -> "dnf"
-      "arch" -> "pacman"
-      "alpine" -> "apk"
-      t when t in ~w(sles opensuse-leap opensuse-tumbleweed) -> "zypper"
-      _ -> nil
-    end
+  @managers %{
+    "ubuntu" => "apt",
+    "debian" => "apt",
+    "raspbian" => "apt",
+    "fedora" => "dnf",
+    "rocky" => "dnf",
+    "rhel" => "dnf",
+    "ol" => "dnf",
+    "amzn" => "dnf",
+    "centos" => "dnf",
+    "almalinux" => "dnf",
+    "arch" => "pacman",
+    "alpine" => "apk",
+    "sles" => "zypper",
+    "opensuse-leap" => "zypper",
+    "opensuse-tumbleweed" => "zypper"
+  }
+
+  def package_manager(id) do
+    Map.get(@managers, Map.get(@aliases, id, id))
   end
 end

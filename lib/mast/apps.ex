@@ -8,8 +8,8 @@ defmodule Mast.Apps do
   """
   import Ecto.Query, warn: false
 
-  alias Mast.Repo
   alias Mast.Apps.Application
+  alias Mast.Repo
 
   @doc "Lists every known application across the fleet, ordered by server then name."
   def list_applications do

@@ -8,8 +8,8 @@ defmodule Mast.Keys do
   """
   import Ecto.Query
 
-  alias Mast.Repo
   alias Mast.Keys.PrivateKey
+  alias Mast.Repo
 
   @doc "Lists registered keys, ordered by name. Does not decrypt bodies."
   def list_keys do

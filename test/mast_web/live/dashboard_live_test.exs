@@ -91,5 +91,23 @@ defmodule MastWeb.DashboardLiveTest do
 
       assert html =~ "can&#39;t be blank"
     end
+
+    test "ignores unrelated PubSub broadcasts on the servers topic", %{conn: conn} do
+      # The dashboard subscribes to the "servers" topic, which also carries
+      # scan/probe events targeting the per-server LiveView. The dashboard
+      # should not crash on messages it doesn't care about.
+      {:ok, view, _html} = live(conn, ~p"/")
+
+      for msg <- [
+            {:scan_failed, 1, "boom"},
+            {:apps_updated, 1},
+            {:apps_probe_failed, 1, :nxdomain},
+            {:run_event, "abc", {:exit, 0}}
+          ] do
+        Phoenix.PubSub.broadcast(Mast.PubSub, "servers", msg)
+      end
+
+      assert render(view) =~ "Fleet Overview"
+    end
   end
 end
