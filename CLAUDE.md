@@ -103,3 +103,19 @@ A change is done when:
   the doc.
 - Prefer the simpler standard library / Ecto API over a clever macro.
 - Don't add a layer of indirection until the second caller appears.
+
+## File size
+
+Keep source files under **~500 LOC**. When a file is approaching the
+limit, propose a split before adding more. Established patterns in this
+repo:
+
+- LiveViews: `foo_live.ex` for state + event handlers, `foo_live/view.ex`
+  for the render template + display helpers. See `MastWeb.AppLive` for
+  the template.
+- Component modules: split by family (buttons, feedback, containers,
+  navigation, data, domain). Re-export from a single entrypoint so
+  callers don't change.
+
+If you're tempted to write a 700-line LiveView, file an issue and split
+in a follow-up PR rather than letting the file grow.
