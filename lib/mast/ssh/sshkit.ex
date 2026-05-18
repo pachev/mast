@@ -20,7 +20,7 @@ defmodule Mast.SSH.SSHKit do
     opts = [
       port: port,
       user: user,
-      user_dir: String.to_charlist(Path.expand("~/.ssh")),
+      user_dir: user_dir(),
       silently_accept_hosts: true,
       user_interaction: false,
       timeout: 10_000
@@ -46,11 +46,25 @@ defmodule Mast.SSH.SSHKit do
   defp render_output(output) when is_list(output) do
     output
     |> Enum.filter(fn
-      {:stdout, _, _} -> true
+      {:stdout, _} -> true
       _ -> false
     end)
-    |> Enum.map_join("", fn {:stdout, data, _} -> data end)
+    |> Enum.map_join("", fn {:stdout, data} -> data end)
   end
 
   defp render_output(_), do: ""
+
+  # Erlang's :ssh scans user_dir for id_rsa, id_ed25519, etc. Operators with
+  # non-standard key paths should set a custom user_dir via:
+  #   config :mast, Mast.SSH.SSHKit, user_dir: "/path/to/dir/of/keys"
+  # and put a copy or symlink of the key with a standard name inside it.
+  # Per-server keys with passphrases will land in a Mast.PrivateKey schema
+  # later (v0.x).
+  defp user_dir do
+    case Application.get_env(:mast, __MODULE__, [])[:user_dir] do
+      nil -> String.to_charlist(Path.expand("~/.ssh"))
+      dir -> String.to_charlist(Path.expand(dir))
+    end
+  end
 end
+

@@ -35,3 +35,6 @@ mast-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Per-operator SSH keys staged for the SSHKit user_dir.
+/priv/ssh/
+

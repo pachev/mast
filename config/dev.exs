@@ -5,6 +5,11 @@ import Config
 # default 60s cron in config.exs.
 config :mast, :check_interval_ms, 30_000
 
+# In dev, stage SSH keys into priv/ssh/ (gitignored) so we don't ship
+# the operator's whole ~/.ssh dir to Erlang's :ssh app. Symlink the
+# real key file in as id_rsa / id_ed25519 etc.
+config :mast, Mast.SSH.SSHKit, user_dir: Path.expand("../priv/ssh", __DIR__)
+
 config :mast, Mast.Repo,
   username: "mast",
   password: "mast",
