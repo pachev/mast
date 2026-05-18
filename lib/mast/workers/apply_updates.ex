@@ -25,6 +25,7 @@ defmodule Mast.Workers.ApplyUpdates do
   """
   use Oban.Worker, queue: :runs, max_attempts: 1
 
+  alias Mast.Audit
   alias Mast.Fleet
   alias Mast.Patches.Apt
   alias Mast.SSH
@@ -38,11 +39,39 @@ defmodule Mast.Workers.ApplyUpdates do
     scope = Map.get(args, "scope", "all")
     package = Map.get(args, "package")
 
-    with {:ok, command} <- build_command(server, scope, package) do
-      stream(server, command, run_id)
-      enqueue_rescan(server)
-      :ok
+    case build_command(server, scope, package) do
+      {:ok, command} ->
+        outcome = stream(server, command, run_id)
+        audit(server, scope, package, outcome)
+        enqueue_rescan(server)
+        :ok
+
+      {:error, reason} = err ->
+        audit(server, scope, package, {:error, reason})
+        err
     end
+  end
+
+  defp audit(server, scope, package, outcome) do
+    base = %{
+      "scope" => scope,
+      "package" => package,
+      "server_name" => server.name
+    }
+
+    extra =
+      case outcome do
+        {:exit, code} -> %{"outcome" => "exit", "exit_code" => code}
+        {:error, reason} -> %{"outcome" => "error", "reason" => inspect(reason)}
+        :no_exit -> %{"outcome" => "no_exit"}
+      end
+
+    Audit.log(%{
+      event_type: "apply.run",
+      subject_type: "Server",
+      subject_id: server.id,
+      metadata: Map.merge(base, extra)
+    })
   end
 
   defp build_command(%{package_manager: "apt"} = server, "all", _) do
@@ -75,11 +104,16 @@ defmodule Mast.Workers.ApplyUpdates do
     SSH.run_stream(
       server,
       command,
-      fn event, _acc ->
+      fn event, acc ->
         Phoenix.PubSub.broadcast(Mast.PubSub, topic, {:run_event, run_id, event})
-        nil
+
+        case event do
+          {:exit, _} -> event
+          {:error, _} -> event
+          _ -> acc
+        end
       end,
-      nil
+      :no_exit
     )
   end
 

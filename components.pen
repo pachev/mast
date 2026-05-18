@@ -6207,7 +6207,7 @@
                     {
                       "type": "frame",
                       "id": "AEsUi",
-                      "name": "Network Card",
+                      "name": "Load Card",
                       "width": "fill_container",
                       "fill": "$--bg-card",
                       "cornerRadius": "$--radius-lg",
@@ -6232,7 +6232,7 @@
                               "id": "znUvE",
                               "name": "mNetlbl",
                               "fill": "$--font-secondary",
-                              "content": "Network",
+                              "content": "Load Avg",
                               "fontFamily": "$--font-family",
                               "fontSize": 13,
                               "fontWeight": "normal"
@@ -6249,7 +6249,7 @@
                               "id": "rwgle",
                               "name": "mNetval",
                               "fill": "$--font-primary",
-                              "content": "12 Mbps",
+                              "content": "0.42",
                               "fontFamily": "$--font-mono",
                               "fontSize": 13,
                               "fontWeight": "600"
@@ -6273,8 +6273,8 @@
                               "x": 0,
                               "y": 0,
                               "name": "mNetfill",
-                              "fill": "$--chart-orange",
-                              "width": 32,
+                              "fill": "$--chart-green",
+                              "width": 54,
                               "height": 8
                             }
                           ]
@@ -6284,7 +6284,7 @@
                           "id": "e1f7rD",
                           "name": "mNetdet",
                           "fill": "$--font-tertiary",
-                          "content": "↑ 3.2 Mbps · ↓ 8.8 Mbps",
+                          "content": "1m: 0.42 · 5m: 0.38 · 15m: 0.31",
                           "fontFamily": "$--font-family",
                           "fontSize": 11,
                           "fontWeight": "normal"
@@ -6595,7 +6595,7 @@
                     {
                       "type": "frame",
                       "id": "D73ST",
-                      "name": "Recent Logs",
+                      "name": "Recent Activity",
                       "width": "fill_container",
                       "fill": "$--bg-card",
                       "cornerRadius": "$--radius-lg",
@@ -6605,55 +6605,59 @@
                         "fill": "$--border"
                       },
                       "layout": "vertical",
-                      "gap": 8,
-                      "padding": 16,
                       "children": [
                         {
                           "type": "frame",
-                          "id": "PX1VA",
-                          "name": "logsTitleRow",
+                          "id": "RqXan",
+                          "name": "actTitleRow",
                           "width": "fill_container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": {
+                              "bottom": 1
+                            },
+                            "fill": "$--border"
+                          },
+                          "gap": 8,
                           "padding": [
-                            0,
-                            0,
-                            4,
-                            0
+                            14,
+                            16
                           ],
                           "alignItems": "center",
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "k8ONji",
-                              "name": "logsIcon",
+                              "id": "nfqJp",
+                              "name": "actIcon",
                               "width": 16,
                               "height": 16,
-                              "iconFontName": "file-text",
+                              "iconFontName": "scroll-text",
                               "iconFontFamily": "lucide",
                               "fill": "$--chart-blue"
                             },
                             {
                               "type": "text",
-                              "id": "xywLN",
-                              "name": "logsTitle",
+                              "id": "Z54i9W",
+                              "name": "actTitle",
                               "fill": "$--font-primary",
-                              "content": "  Recent Logs",
+                              "content": "Recent Activity",
                               "fontFamily": "$--font-family",
                               "fontSize": 14,
                               "fontWeight": "600"
                             },
                             {
                               "type": "frame",
-                              "id": "WhKqu",
-                              "name": "logsSp",
+                              "id": "OGwph",
+                              "name": "actSp",
                               "width": "fill_container",
                               "height": 1
                             },
                             {
                               "type": "text",
-                              "id": "NeW8N",
-                              "name": "logsAll",
+                              "id": "o49kDa",
+                              "name": "actAll",
                               "fill": "$--accent",
-                              "content": "View All →",
+                              "content": "View All",
                               "fontFamily": "$--font-family",
                               "fontSize": 12,
                               "fontWeight": "normal"
@@ -6662,352 +6666,499 @@
                         },
                         {
                           "type": "frame",
-                          "id": "fb21W",
-                          "name": "log1",
+                          "id": "F6Afvm",
+                          "name": "act1",
                           "width": "fill_container",
-                          "cornerRadius": "$--radius-sm",
-                          "gap": 8,
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": {
+                              "bottom": 1
+                            },
+                            "fill": "$--border"
+                          },
+                          "gap": 12,
                           "padding": [
-                            6,
-                            8
+                            12,
+                            16
                           ],
-                          "alignItems": "center",
                           "children": [
                             {
-                              "type": "text",
-                              "id": "XoyFj",
-                              "name": "log1time",
-                              "fill": "$--font-tertiary",
-                              "content": "14:32:01",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
                               "type": "frame",
-                              "id": "sDQRg",
-                              "name": "log1sev",
-                              "fill": "$--accent-muted",
-                              "cornerRadius": 4,
-                              "padding": [
-                                2,
-                                6
-                              ],
+                              "id": "Pa1j4",
+                              "name": "r1av",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "$--bg-tertiary",
+                              "cornerRadius": 14,
+                              "layout": "none",
                               "children": [
                                 {
-                                  "type": "text",
-                                  "id": "WZflg",
-                                  "name": "log1sevTxt",
-                                  "fill": "$--accent",
-                                  "content": "INFO",
-                                  "fontFamily": "$--font-mono",
-                                  "fontSize": 10,
-                                  "fontWeight": "600"
+                                  "type": "icon_font",
+                                  "id": "K4S6T1",
+                                  "x": 7,
+                                  "y": 7,
+                                  "name": "r1avi",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "bot",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--font-tertiary"
                                 }
                               ]
                             },
                             {
-                              "type": "text",
-                              "id": "pCGi7",
-                              "name": "log1msg",
-                              "fill": "$--font-primary",
-                              "content": "Phoenix endpoint started on port 4000",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
+                              "type": "frame",
+                              "id": "vEfU3",
+                              "name": "r1body",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 3,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "IdhId",
+                                  "name": "r1line1",
+                                  "width": "fill_container",
+                                  "gap": 6,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Rnv0V",
+                                      "name": "r1actor",
+                                      "fill": "$--font-primary",
+                                      "content": "System",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "BPq8k",
+                                      "name": "r1badge",
+                                      "fill": "#FEF3C7",
+                                      "cornerRadius": 8,
+                                      "padding": [
+                                        2,
+                                        7
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "DtABX",
+                                          "name": "r1badgeTxt",
+                                          "fill": "$--status-warning",
+                                          "content": "scan",
+                                          "fontFamily": "$--font-mono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "o1zmCN",
+                                      "name": "r1desc",
+                                      "fill": "$--font-primary",
+                                      "content": "scanned for upgradable packages",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "kgdY1",
+                                  "name": "r1sub",
+                                  "fill": "$--font-tertiary",
+                                  "content": "12 packages available",
+                                  "fontFamily": "$--font-mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "zkkg8",
+                                  "name": "r1time",
+                                  "fill": "$--font-tertiary",
+                                  "content": "2 min ago",
+                                  "fontFamily": "$--font-family",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
                             }
                           ]
                         },
                         {
                           "type": "frame",
-                          "id": "JHr5A",
-                          "name": "log2",
+                          "id": "xFtL3",
+                          "name": "act2",
                           "width": "fill_container",
                           "fill": "$--bg-secondary",
-                          "cornerRadius": "$--radius-sm",
-                          "gap": 8,
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": {
+                              "bottom": 1
+                            },
+                            "fill": "$--border"
+                          },
+                          "gap": 12,
                           "padding": [
-                            6,
-                            8
+                            12,
+                            16
                           ],
-                          "alignItems": "center",
                           "children": [
                             {
-                              "type": "text",
-                              "id": "vswyd",
-                              "name": "log2time",
-                              "fill": "$--font-tertiary",
-                              "content": "14:31:58",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
                               "type": "frame",
-                              "id": "WpCLu",
-                              "name": "log2sev",
-                              "fill": "$--accent-muted",
-                              "cornerRadius": 4,
-                              "padding": [
-                                2,
-                                6
-                              ],
+                              "id": "gF8pH",
+                              "name": "r2av",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "$--accent",
+                              "cornerRadius": 14,
+                              "layout": "none",
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "CUr6V",
-                                  "name": "log2sevTxt",
-                                  "fill": "$--accent",
-                                  "content": "INFO",
-                                  "fontFamily": "$--font-mono",
+                                  "id": "jEzn7",
+                                  "x": 0,
+                                  "y": 0,
+                                  "name": "r2avt",
+                                  "fill": "$--accent-text",
+                                  "textGrowth": "fixed-width-height",
+                                  "width": 28,
+                                  "height": 28,
+                                  "content": "SY",
+                                  "textAlign": "center",
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "$--font-family",
                                   "fontSize": 10,
                                   "fontWeight": "600"
                                 }
                               ]
                             },
                             {
-                              "type": "text",
-                              "id": "p0mh2b",
-                              "name": "log2msg",
-                              "fill": "$--font-primary",
-                              "content": "Oban started with queues: default, updates",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
+                              "type": "frame",
+                              "id": "JgqPE",
+                              "name": "r2body",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 3,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "O822P",
+                                  "name": "r2line1",
+                                  "width": "fill_container",
+                                  "gap": 6,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "mIWxy",
+                                      "name": "r2actor",
+                                      "fill": "$--font-primary",
+                                      "content": "System",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "M40eW",
+                                      "name": "r2badge",
+                                      "fill": "$--accent-muted",
+                                      "cornerRadius": 8,
+                                      "padding": [
+                                        2,
+                                        7
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "PU451",
+                                          "name": "r2badgeTxt",
+                                          "fill": "$--accent",
+                                          "content": "apply_run",
+                                          "fontFamily": "$--font-mono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "DYIMZ",
+                                      "name": "r2desc",
+                                      "fill": "$--font-primary",
+                                      "content": "applied 4 updates",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "B8GQcO",
+                                  "name": "r2sub",
+                                  "fill": "$--font-tertiary",
+                                  "content": "libssl3, openssl, curl, wget",
+                                  "fontFamily": "$--font-mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "VZq5U",
+                                  "name": "r2time",
+                                  "fill": "$--font-tertiary",
+                                  "content": "15 min ago",
+                                  "fontFamily": "$--font-family",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
                             }
                           ]
                         },
                         {
                           "type": "frame",
-                          "id": "UpJFE",
-                          "name": "log3",
+                          "id": "Gi79O",
+                          "name": "act3",
                           "width": "fill_container",
-                          "cornerRadius": "$--radius-sm",
-                          "gap": 8,
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": {
+                              "bottom": 1
+                            },
+                            "fill": "$--border"
+                          },
+                          "gap": 12,
                           "padding": [
-                            6,
-                            8
+                            12,
+                            16
                           ],
-                          "alignItems": "center",
                           "children": [
                             {
-                              "type": "text",
-                              "id": "a5Ud0p",
-                              "name": "log3time",
-                              "fill": "$--font-tertiary",
-                              "content": "14:31:55",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
                               "type": "frame",
-                              "id": "q59FBx",
-                              "name": "log3sev",
-                              "fill": "#FEF3C7",
-                              "cornerRadius": 4,
-                              "padding": [
-                                2,
-                                6
-                              ],
+                              "id": "HwbDH",
+                              "name": "r3av",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "$--bg-tertiary",
+                              "cornerRadius": 14,
+                              "layout": "none",
                               "children": [
                                 {
-                                  "type": "text",
-                                  "id": "eYRRT",
-                                  "name": "log3sevTxt",
-                                  "fill": "$--status-warning",
-                                  "content": "WARN",
-                                  "fontFamily": "$--font-mono",
-                                  "fontSize": 10,
-                                  "fontWeight": "600"
+                                  "type": "icon_font",
+                                  "id": "WGC6b",
+                                  "x": 7,
+                                  "y": 7,
+                                  "name": "r3avi",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "bot",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--font-tertiary"
                                 }
                               ]
                             },
                             {
-                              "type": "text",
-                              "id": "VjOhf",
-                              "name": "log3msg",
-                              "fill": "$--font-primary",
-                              "content": "SSH connection timeout to db-prod-1 (3 retries)",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
+                              "type": "frame",
+                              "id": "lTAJI",
+                              "name": "r3body",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 3,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "YGqu8",
+                                  "name": "r3line1",
+                                  "width": "fill_container",
+                                  "gap": 6,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "z3RVOw",
+                                      "name": "r3actor",
+                                      "fill": "$--font-primary",
+                                      "content": "System",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "dUzTA",
+                                      "name": "r3badge",
+                                      "fill": "$--accent-muted",
+                                      "cornerRadius": 8,
+                                      "padding": [
+                                        2,
+                                        7
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "vahZb",
+                                          "name": "r3badgeTxt",
+                                          "fill": "$--accent",
+                                          "content": "key.create",
+                                          "fontFamily": "$--font-mono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "VhGiZ",
+                                      "name": "r3desc",
+                                      "fill": "$--font-primary",
+                                      "content": "registered SSH key",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "U7DQeO",
+                                  "name": "r3sub",
+                                  "fill": "$--font-tertiary",
+                                  "content": "SHA256:45OXolgtQD+PjgMKu6cl...",
+                                  "fontFamily": "$--font-mono",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "apU1o",
+                                  "name": "r3time",
+                                  "fill": "$--font-tertiary",
+                                  "content": "1 hour ago",
+                                  "fontFamily": "$--font-family",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
                             }
                           ]
                         },
                         {
                           "type": "frame",
-                          "id": "c1mz5v",
-                          "name": "log4",
+                          "id": "ziG4o",
+                          "name": "act4",
                           "width": "fill_container",
                           "fill": "$--bg-secondary",
-                          "cornerRadius": "$--radius-sm",
-                          "gap": 8,
+                          "gap": 12,
                           "padding": [
-                            6,
-                            8
+                            12,
+                            16
                           ],
-                          "alignItems": "center",
                           "children": [
                             {
-                              "type": "text",
-                              "id": "sKLF5",
-                              "name": "log4time",
-                              "fill": "$--font-tertiary",
-                              "content": "14:31:50",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
                               "type": "frame",
-                              "id": "wIANl",
-                              "name": "log4sev",
-                              "fill": "#FEE2E2",
-                              "cornerRadius": 4,
-                              "padding": [
-                                2,
-                                6
-                              ],
+                              "id": "mlIsP",
+                              "name": "r4av",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "$--bg-tertiary",
+                              "cornerRadius": 14,
+                              "layout": "none",
                               "children": [
                                 {
-                                  "type": "text",
-                                  "id": "RQW41",
-                                  "name": "log4sevTxt",
-                                  "fill": "$--status-offline",
-                                  "content": "ERR",
-                                  "fontFamily": "$--font-mono",
-                                  "fontSize": 10,
-                                  "fontWeight": "600"
+                                  "type": "icon_font",
+                                  "id": "KAb4V",
+                                  "x": 7,
+                                  "y": 7,
+                                  "name": "r4avi",
+                                  "width": 14,
+                                  "height": 14,
+                                  "iconFontName": "bot",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "$--font-tertiary"
                                 }
                               ]
                             },
                             {
-                              "type": "text",
-                              "id": "W0VNF",
-                              "name": "log4msg",
-                              "fill": "$--font-primary",
-                              "content": "db-prod-1 heartbeat failed — marking offline",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "hG7vY",
-                          "name": "log5",
-                          "width": "fill_container",
-                          "cornerRadius": "$--radius-sm",
-                          "gap": 8,
-                          "padding": [
-                            6,
-                            8
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "CRLn8",
-                              "name": "log5time",
-                              "fill": "$--font-tertiary",
-                              "content": "14:30:22",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
                               "type": "frame",
-                              "id": "xpwia",
-                              "name": "log5sev",
-                              "fill": "$--accent-muted",
-                              "cornerRadius": 4,
-                              "padding": [
-                                2,
-                                6
-                              ],
+                              "id": "zyypB",
+                              "name": "r4body",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 3,
                               "children": [
                                 {
-                                  "type": "text",
-                                  "id": "yxLWK",
-                                  "name": "log5sevTxt",
-                                  "fill": "$--accent",
-                                  "content": "INFO",
-                                  "fontFamily": "$--font-mono",
-                                  "fontSize": 10,
-                                  "fontWeight": "600"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "pjc0N",
-                              "name": "log5msg",
-                              "fill": "$--font-primary",
-                              "content": "apt list --upgradable: 4 packages on web-prod-1",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "wfKQL",
-                          "name": "log6",
-                          "width": "fill_container",
-                          "fill": "$--bg-secondary",
-                          "cornerRadius": "$--radius-sm",
-                          "gap": 8,
-                          "padding": [
-                            6,
-                            8
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "HGTY0",
-                              "name": "log6time",
-                              "fill": "$--font-tertiary",
-                              "content": "14:28:10",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "frame",
-                              "id": "N4GbXX",
-                              "name": "log6sev",
-                              "fill": "$--accent-muted",
-                              "cornerRadius": 4,
-                              "padding": [
-                                2,
-                                6
-                              ],
-                              "children": [
+                                  "type": "frame",
+                                  "id": "wFRJS",
+                                  "name": "r4line1",
+                                  "width": "fill_container",
+                                  "gap": 6,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "bwiME",
+                                      "name": "r4actor",
+                                      "fill": "$--font-primary",
+                                      "content": "System",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "600"
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "AIP0g",
+                                      "name": "r4badge",
+                                      "fill": "$--accent-muted",
+                                      "cornerRadius": 8,
+                                      "padding": [
+                                        2,
+                                        7
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "n34mRK",
+                                          "name": "r4badgeTxt",
+                                          "fill": "$--accent",
+                                          "content": "create",
+                                          "fontFamily": "$--font-mono",
+                                          "fontSize": 10,
+                                          "fontWeight": "600"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "qMkET",
+                                      "name": "r4desc",
+                                      "fill": "$--font-primary",
+                                      "content": "added server to fleet",
+                                      "fontFamily": "$--font-family",
+                                      "fontSize": 12,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
                                 {
                                   "type": "text",
-                                  "id": "Lioem",
-                                  "name": "log6sevTxt",
-                                  "fill": "$--accent",
-                                  "content": "INFO",
-                                  "fontFamily": "$--font-mono",
-                                  "fontSize": 10,
-                                  "fontWeight": "600"
+                                  "id": "R5vBew",
+                                  "name": "r4time",
+                                  "fill": "$--font-tertiary",
+                                  "content": "2 hours ago",
+                                  "fontFamily": "$--font-family",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
                                 }
                               ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "Bvq56",
-                              "name": "log6msg",
-                              "fill": "$--font-primary",
-                              "content": "Telemetry metrics collected from mast_web",
-                              "fontFamily": "$--font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -12886,6 +13037,16 @@
                               ]
                             },
                             {
+                              "type": "text",
+                              "id": "K2ky6",
+                              "name": "s1",
+                              "fill": "$--font-tertiary",
+                              "content": "12 packages available",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
                               "type": "frame",
                               "id": "FenOl",
                               "name": "meta1",
@@ -13030,6 +13191,16 @@
                               ]
                             },
                             {
+                              "type": "text",
+                              "id": "JJlRt",
+                              "name": "s2",
+                              "fill": "$--font-tertiary",
+                              "content": "libssl3, openssl, curl, wget + 6 more",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
                               "type": "frame",
                               "id": "o45KuA",
                               "name": "meta2",
@@ -13171,6 +13342,16 @@
                                   "fontWeight": "normal"
                                 }
                               ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "jYCzU",
+                              "name": "s3",
+                              "fill": "$--font-tertiary",
+                              "content": "exit code 100: dpkg lock held by another process",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "frame",
@@ -13460,6 +13641,16 @@
                               ]
                             },
                             {
+                              "type": "text",
+                              "id": "x5PLI",
+                              "name": "s5",
+                              "fill": "$--font-tertiary",
+                              "content": "SHA256:45OXolgtQD+PjgMKu6clQnpdzv8y/+ssPLOfvmbBHxY",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
                               "type": "frame",
                               "id": "xqH7T",
                               "name": "meta5",
@@ -13602,6 +13793,16 @@
                                   "fontWeight": "normal"
                                 }
                               ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "uy12w",
+                              "name": "s6",
+                              "fill": "$--font-tertiary",
+                              "content": "6 packages available",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "frame",
@@ -13891,6 +14092,16 @@
                               ]
                             },
                             {
+                              "type": "text",
+                              "id": "iSJVU",
+                              "name": "s8",
+                              "fill": "$--font-tertiary",
+                              "content": "SHA256:rZ7kQp2mNb...",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
                               "type": "frame",
                               "id": "n73xE",
                               "name": "meta8",
@@ -14032,6 +14243,16 @@
                                   "fontWeight": "normal"
                                 }
                               ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "FDMx6",
+                              "name": "s9",
+                              "fill": "$--font-tertiary",
+                              "content": "libpam-modules, systemd, udev",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "frame",
@@ -14176,6 +14397,16 @@
                                   "fontWeight": "normal"
                                 }
                               ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "trNNs",
+                              "name": "s10",
+                              "fill": "$--font-tertiary",
+                              "content": "42 total packages across fleet",
+                              "fontFamily": "$--font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "frame",
@@ -14575,6 +14806,16 @@
                   ]
                 },
                 {
+                  "type": "text",
+                  "id": "KqSOM",
+                  "name": "metaSub",
+                  "fill": "$--font-tertiary",
+                  "content": "libssl3, openssl, curl, wget + 6 more",
+                  "fontFamily": "$--font-mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
                   "type": "frame",
                   "id": "Gh1lw",
                   "name": "line2",
@@ -14727,6 +14968,16 @@
                       "fontWeight": "normal"
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "id": "FFoiK",
+                  "name": "metaSub",
+                  "fill": "$--font-tertiary",
+                  "content": "exit code 100: dpkg lock held by another process",
+                  "fontFamily": "$--font-mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -14882,6 +15133,16 @@
                   ]
                 },
                 {
+                  "type": "text",
+                  "id": "TxmOu",
+                  "name": "metaSub",
+                  "fill": "$--font-tertiary",
+                  "content": "6 packages available",
+                  "fontFamily": "$--font-mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
                   "type": "frame",
                   "id": "LQuZI",
                   "name": "line2",
@@ -15033,6 +15294,16 @@
                       "fontWeight": "normal"
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "id": "rkB9W",
+                  "name": "metaSub",
+                  "fill": "$--font-tertiary",
+                  "content": "added server tke",
+                  "fontFamily": "$--font-mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -15189,6 +15460,16 @@
                   ]
                 },
                 {
+                  "type": "text",
+                  "id": "yTvoV",
+                  "name": "metaSub",
+                  "fill": "$--font-tertiary",
+                  "content": "removed from fleet",
+                  "fontFamily": "$--font-mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
                   "type": "frame",
                   "id": "gDFn6",
                   "name": "line2",
@@ -15340,6 +15621,16 @@
                       "fontWeight": "normal"
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "id": "DDbqO",
+                  "name": "metaSub",
+                  "fill": "$--font-tertiary",
+                  "content": "SHA256:45OXolgtQD+PjgMKu6clQnpdzv8y/+ssPLOfvmbBHxY",
+                  "fontFamily": "$--font-mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -18030,7 +18321,7 @@
                   "stroke": {
                     "align": "inside",
                     "thickness": 1,
-                    "fill": "#000000"
+                    "fill": "$--status-offline"
                   },
                   "layout": "vertical",
                   "gap": 16,
@@ -18056,7 +18347,7 @@
                               "type": "text",
                               "id": "tuCtY",
                               "name": "dangerTitle",
-                              "fill": "#000000",
+                              "fill": "$--status-offline",
                               "content": "Danger zone",
                               "fontFamily": "$--font-family",
                               "fontSize": 18,
@@ -18088,7 +18379,7 @@
                           "id": "NxLCU",
                           "name": "removeBtn",
                           "height": 36,
-                          "fill": "#000000",
+                          "fill": "$--status-offline",
                           "cornerRadius": "$--radius-md",
                           "gap": 6,
                           "padding": [

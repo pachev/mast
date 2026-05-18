@@ -106,6 +106,36 @@ defmodule Mast.KeysTest do
     end
   end
 
+  describe "audit logging" do
+    test "create_key writes a key.created audit event" do
+      {:ok, key} = Keys.create_key(%{name: "audited", body: pem("test_ed25519")})
+
+      [event] = Mast.Repo.all(Mast.Audit.Event)
+      assert event.event_type == "key.created"
+      assert event.subject_type == "PrivateKey"
+      assert event.subject_id == key.id
+      assert event.metadata["name"] == "audited"
+      assert event.metadata["algorithm"] == "ed25519"
+    end
+
+    test "create_key writes no audit event on failure" do
+      {:error, _} = Keys.create_key(%{name: "bad", body: "junk"})
+      assert Mast.Repo.aggregate(Mast.Audit.Event, :count) == 0
+    end
+
+    test "delete_key writes a key.deleted audit event" do
+      {:ok, k} = Keys.create_key(%{name: "to-delete", body: pem("test_ed25519")})
+      {:ok, _} = Keys.delete_key(k)
+
+      events =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.map(& &1.event_type)
+
+      assert "key.deleted" in events
+    end
+  end
+
   describe "inspect/1" do
     test "never reveals the encrypted body" do
       {:ok, key} = Keys.create_key(%{name: "secret", body: pem("test_ed25519")})

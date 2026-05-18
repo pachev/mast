@@ -14,6 +14,7 @@ defmodule Mast.Workers.PatchScan do
     max_attempts: 3,
     unique: [period: 60, fields: [:worker, :args]]
 
+  alias Mast.Audit
   alias Mast.Fleet
   alias Mast.Patches.Apt
   alias Mast.SSH
@@ -42,10 +43,12 @@ defmodule Mast.Workers.PatchScan do
             last_scan: normalised
           })
 
+        audit(server, "ok", %{"updates_available" => scan.total})
         broadcast({:server_updated, updated})
         :ok
 
       :skip ->
+        audit(server, "skip", %{"reason" => "no supported package manager"})
         broadcast({:scan_failed, server.id, "no supported package manager on this server"})
         :ok
 
@@ -54,9 +57,19 @@ defmodule Mast.Workers.PatchScan do
 
         Logger.warning("PatchScan failed for server #{server.name}: #{inspect(reason)}")
 
+        audit(server, "error", %{"reason" => format_reason(reason)})
         broadcast({:scan_failed, server.id, format_reason(reason)})
         :ok
     end
+  end
+
+  defp audit(server, outcome, extra) do
+    Audit.log(%{
+      event_type: "scan.run",
+      subject_type: "Server",
+      subject_id: server.id,
+      metadata: Map.merge(%{"outcome" => outcome, "server_name" => server.name}, extra)
+    })
   end
 
   defp format_reason({:non_zero_exit, code, output}) do

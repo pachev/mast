@@ -8,6 +8,8 @@ defmodule Mast.Keys do
   """
   import Ecto.Query
 
+  alias Ecto.Multi
+  alias Mast.Audit
   alias Mast.Keys.PrivateKey
   alias Mast.Repo
 
@@ -23,13 +25,43 @@ defmodule Mast.Keys do
 
   @doc "Inserts a key after parsing/validating the PEM body."
   def create_key(attrs \\ %{}) do
-    %PrivateKey{}
-    |> PrivateKey.changeset(attrs)
-    |> Repo.insert()
+    Multi.new()
+    |> Multi.insert(:key, PrivateKey.changeset(%PrivateKey{}, attrs))
+    |> Audit.multi_log(:audit, fn %{key: key} ->
+      %{
+        event_type: "key.created",
+        subject_type: "PrivateKey",
+        subject_id: key.id,
+        metadata: %{
+          "name" => key.name,
+          "algorithm" => key.algorithm,
+          "fingerprint" => key.fingerprint
+        }
+      }
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{key: key}} -> {:ok, key}
+      {:error, :key, changeset, _} -> {:error, changeset}
+    end
   end
 
   @doc "Deletes a key."
-  def delete_key(%PrivateKey{} = k), do: Repo.delete(k)
+  def delete_key(%PrivateKey{} = k) do
+    Multi.new()
+    |> Multi.delete(:key, k)
+    |> Audit.multi_log(:audit, %{
+      event_type: "key.deleted",
+      subject_type: "PrivateKey",
+      subject_id: k.id,
+      metadata: %{"name" => k.name, "fingerprint" => k.fingerprint}
+    })
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{key: key}} -> {:ok, key}
+      {:error, :key, changeset, _} -> {:error, changeset}
+    end
+  end
 
   @doc """
   Returns the decrypted PEM body for `key`. This is the only function that

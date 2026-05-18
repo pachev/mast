@@ -150,6 +150,21 @@ defmodule MastWeb.DashboardLiveTest do
       assert [%{name: "web-1", host: "10.0.0.7"}] = Fleet.list_servers()
     end
 
+    test "creating a server immediately enqueues a ConnectionCheck", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/servers/new")
+
+      view
+      |> form("#new-server-form", server: %{name: "hermes", host: "10.0.0.42"})
+      |> render_submit()
+
+      [server] = Fleet.list_servers()
+
+      assert_enqueued(
+        worker: Mast.Workers.ConnectionCheck,
+        args: %{"server_id" => server.id}
+      )
+    end
+
     test "form shows validation errors on bad submit", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/servers/new")
 

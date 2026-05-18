@@ -7,6 +7,8 @@ defmodule Mast.Fleet do
   """
   import Ecto.Query, warn: false
 
+  alias Ecto.Multi
+  alias Mast.Audit
   alias Mast.Fleet.Server
   alias Mast.Repo
 
@@ -22,13 +24,39 @@ defmodule Mast.Fleet do
 
   @doc "Inserts a server."
   def create_server(attrs \\ %{}) do
-    %Server{}
-    |> Server.changeset(attrs)
-    |> Repo.insert()
+    Multi.new()
+    |> Multi.insert(:server, Server.changeset(%Server{}, attrs))
+    |> Audit.multi_log(:audit, fn %{server: s} ->
+      %{
+        event_type: "server.created",
+        subject_type: "Server",
+        subject_id: s.id,
+        metadata: %{"name" => s.name, "host" => s.host, "user" => s.user, "port" => s.port}
+      }
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{server: s}} -> {:ok, s}
+      {:error, :server, changeset, _} -> {:error, changeset}
+    end
   end
 
   @doc "Deletes a server."
-  def delete_server(%Server{} = s), do: Repo.delete(s)
+  def delete_server(%Server{} = s) do
+    Multi.new()
+    |> Multi.delete(:server, s)
+    |> Audit.multi_log(:audit, %{
+      event_type: "server.deleted",
+      subject_type: "Server",
+      subject_id: s.id,
+      metadata: %{"name" => s.name, "host" => s.host}
+    })
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{server: s}} -> {:ok, s}
+      {:error, :server, changeset, _} -> {:error, changeset}
+    end
+  end
 
   @doc "Builds a changeset for forms."
   def change_server(%Server{} = s, attrs \\ %{}), do: Server.changeset(s, attrs)

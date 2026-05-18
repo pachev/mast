@@ -1,9 +1,14 @@
 defmodule MastWeb.AuditLive do
   @moduledoc """
-  Audit log view. Currently renders mock entries — wire to a real audit
-  table when that schema lands (see `gh issue` for tracking).
+  Audit log view. Renders rows from `audit_events`, newest first.
+
+  Presentation is derived from `event_type` + `metadata`. The schema
+  intentionally has no presentation concern — adding a new event type
+  here is a one-liner in `present/1` plus a `variant_for/1` clause.
   """
   use MastWeb, :live_view
+
+  alias Mast.Audit
 
   @impl true
   def mount(_params, _session, socket) do
@@ -11,7 +16,7 @@ defmodule MastWeb.AuditLive do
      socket
      |> assign(:page_title, "Audit")
      |> assign(:filter, "")
-     |> assign(:events, mock_events())}
+     |> assign(:events, load_events())}
   end
 
   @impl true
@@ -34,7 +39,16 @@ defmodule MastWeb.AuditLive do
           <form phx-change="filter" class="flex-1 min-w-64">
             <.ui_search name="q" value={@filter} placeholder="Search events..." />
           </form>
-          <.ui_badge variant="neutral" dot={false}>{length(@events)} events</.ui_badge>
+          <.ui_badge variant="neutral" dot={false}>
+            {length(filter_events(@events, @filter))} events
+          </.ui_badge>
+        </div>
+
+        <div
+          :if={@events == []}
+          class="px-6 py-12 text-center text-sm text-[var(--mast-font-secondary)]"
+        >
+          No audit events yet.
         </div>
 
         <div>
@@ -53,6 +67,10 @@ defmodule MastWeb.AuditLive do
     """
   end
 
+  defp load_events do
+    Audit.list_recent(200) |> Enum.map(&present/1)
+  end
+
   defp filter_events(events, ""), do: events
 
   defp filter_events(events, q) do
@@ -61,84 +79,81 @@ defmodule MastWeb.AuditLive do
     Enum.filter(events, fn e ->
       String.contains?(String.downcase(e.verb), s) or
         String.contains?(String.downcase(e.target || ""), s) or
-        String.contains?(String.downcase(e.actor), s)
+        String.contains?(String.downcase(e.actor), s) or
+        String.contains?(String.downcase(e.detail || ""), s)
     end)
   end
 
-  defp mock_events do
-    [
-      %{
-        variant: "scan",
-        actor: "System",
-        verb: "scanned",
-        target: "web-prod-1",
-        time: "2m ago",
-        detail: "12 packages available"
-      },
-      %{
-        variant: "action",
-        actor: "System",
-        verb: "applied 10 updates on",
-        target: "web-prod-1",
-        time: "8m ago",
-        detail: nil
-      },
-      %{
-        variant: "create",
-        actor: "System",
-        verb: "added monitor for",
-        target: "fleet",
-        time: "1h ago",
-        detail: nil
-      },
-      %{
-        variant: "failure",
-        actor: "System",
-        verb: "ssh key deploy failed on",
-        target: "api-prod-2",
-        time: "2h ago",
-        detail: "Permission denied (publickey)"
-      },
-      %{
-        variant: "action",
-        actor: "System",
-        verb: "apt smart list for",
-        target: "upgradable packages",
-        time: "4h ago",
-        detail: nil
-      },
-      %{
-        variant: "create",
-        actor: "System",
-        verb: "removed old staging from",
-        target: "fleet",
-        time: "yesterday",
-        detail: nil
-      },
-      %{
-        variant: "delete",
-        actor: "System",
-        verb: "deleted SSH key",
-        target: "legacy",
-        time: "2d ago",
-        detail: nil
-      },
-      %{
-        variant: "action",
-        actor: "System",
-        verb: "applied 3 updates on",
-        target: "staging-1",
-        time: "3d ago",
-        detail: nil
-      },
-      %{
-        variant: "key-create",
-        actor: "System",
-        verb: "registered ed25519 key",
-        target: "deploy-2025",
-        time: "1w ago",
-        detail: nil
-      }
-    ]
+  # Maps a raw Audit.Event row to the shape `ui_audit_row` expects.
+  defp present(event) do
+    %{
+      variant: variant_for(event.event_type),
+      actor: actor_label(event.actor_id),
+      verb: verb_for(event.event_type),
+      target: target_for(event),
+      time: relative_time(event.inserted_at),
+      detail: detail_for(event)
+    }
+  end
+
+  defp variant_for("key.created"), do: "key-create"
+  defp variant_for("key.deleted"), do: "delete"
+  defp variant_for("server.created"), do: "create"
+  defp variant_for("server.deleted"), do: "delete"
+  defp variant_for("scan.run"), do: "scan"
+  defp variant_for("apply.run"), do: "action"
+  defp variant_for(_), do: "action"
+
+  defp verb_for("key.created"), do: "registered SSH key"
+  defp verb_for("key.deleted"), do: "deleted SSH key"
+  defp verb_for("server.created"), do: "added server"
+  defp verb_for("server.deleted"), do: "removed server"
+  defp verb_for("scan.run"), do: "scanned"
+  defp verb_for("apply.run"), do: "applied updates on"
+  defp verb_for(type), do: type
+
+  defp target_for(%{metadata: %{"server_name" => name}}) when is_binary(name), do: name
+  defp target_for(%{metadata: %{"name" => name}}) when is_binary(name), do: name
+  defp target_for(%{subject_type: t, subject_id: id}) when not is_nil(id), do: "#{t}##{id}"
+  defp target_for(_), do: nil
+
+  defp detail_for(%{event_type: "scan.run", metadata: meta}) do
+    case meta do
+      %{"outcome" => "ok", "updates_available" => n} -> "#{n} packages available"
+      %{"outcome" => "error", "reason" => reason} -> reason
+      %{"outcome" => "skip", "reason" => reason} -> reason
+      _ -> nil
+    end
+  end
+
+  defp detail_for(%{event_type: "apply.run", metadata: meta}) do
+    case meta do
+      %{"outcome" => "exit", "exit_code" => 0} -> "exit 0"
+      %{"outcome" => "exit", "exit_code" => code} -> "exit #{code}"
+      %{"outcome" => "error", "reason" => reason} -> reason
+      _ -> nil
+    end
+  end
+
+  defp detail_for(%{event_type: "key.created", metadata: %{"fingerprint" => fp}})
+       when is_binary(fp),
+       do: fp
+
+  defp detail_for(_), do: nil
+
+  defp actor_label(0), do: "System"
+  defp actor_label(nil), do: "System"
+  defp actor_label(id), do: "User ##{id}"
+
+  defp relative_time(dt) do
+    seconds = DateTime.diff(DateTime.utc_now(), dt, :second)
+
+    cond do
+      seconds < 60 -> "just now"
+      seconds < 3600 -> "#{div(seconds, 60)}m ago"
+      seconds < 86_400 -> "#{div(seconds, 3600)}h ago"
+      seconds < 604_800 -> "#{div(seconds, 86_400)}d ago"
+      true -> Calendar.strftime(dt, "%Y-%m-%d")
+    end
   end
 end

@@ -72,6 +72,12 @@ defmodule MastWeb.DashboardLive do
   def handle_event("save", %{"server" => params}, socket) do
     case Fleet.create_server(params) do
       {:ok, server} ->
+        # Run a connection check now instead of waiting up to a minute for
+        # the next cron tick. The card stays greyed out until we have metrics.
+        %{server_id: server.id}
+        |> Mast.Workers.ConnectionCheck.new()
+        |> Oban.insert()
+
         {:noreply,
          socket
          |> assign(:servers, socket.assigns.servers ++ [server])

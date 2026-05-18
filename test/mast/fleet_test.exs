@@ -79,6 +79,36 @@ defmodule Mast.FleetTest do
     end
   end
 
+  describe "audit logging" do
+    test "create_server writes a server.created audit event" do
+      {:ok, s} = Fleet.create_server(@valid)
+
+      [event] = Mast.Repo.all(Mast.Audit.Event)
+      assert event.event_type == "server.created"
+      assert event.subject_type == "Server"
+      assert event.subject_id == s.id
+      assert event.metadata["name"] == s.name
+      assert event.metadata["host"] == s.host
+    end
+
+    test "create_server writes no audit event on failure" do
+      {:error, _} = Fleet.create_server(%{name: "", host: ""})
+      assert Mast.Repo.aggregate(Mast.Audit.Event, :count) == 0
+    end
+
+    test "delete_server writes a server.deleted audit event" do
+      {:ok, s} = Fleet.create_server(@valid)
+      {:ok, _} = Fleet.delete_server(s)
+
+      events =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.map(& &1.event_type)
+
+      assert "server.deleted" in events
+    end
+  end
+
   describe "record_metrics/2" do
     test "stores cpu/memory/disk/net snapshots and bumps last_seen_at" do
       {:ok, s} = Fleet.create_server(@valid)

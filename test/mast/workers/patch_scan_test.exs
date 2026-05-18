@@ -67,6 +67,58 @@ defmodule Mast.Workers.PatchScanTest do
     end
   end
 
+  describe "audit logging" do
+    test "writes a scan.run audit event on success" do
+      {:ok, server} = Fleet.create_server(%{name: "audit-ok", host: "10.0.0.20"})
+      {:ok, server} = Fleet.update_server_meta(server, %{os_id: "ubuntu", package_manager: "apt"})
+
+      Stub.expect(server, "sudo -n apt-get update -qq", {:ok, ""})
+      Stub.expect(server, "LANG=C apt list --upgradable 2>/dev/null", {:ok, @apt_out})
+
+      :ok = perform_job(PatchScan, %{"server_id" => server.id})
+
+      event =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.find(&(&1.event_type == "scan.run" and &1.subject_id == server.id))
+
+      assert event
+      assert event.metadata["outcome"] == "ok"
+      assert event.metadata["updates_available"] == 2
+    end
+
+    test "writes a scan.run audit event on error" do
+      {:ok, server} = Fleet.create_server(%{name: "audit-err", host: "10.0.0.21"})
+      {:ok, server} = Fleet.update_server_meta(server, %{os_id: "ubuntu", package_manager: "apt"})
+
+      Stub.expect(server, "sudo -n apt-get update -qq", {:error, :nxdomain})
+
+      :ok = perform_job(PatchScan, %{"server_id" => server.id})
+
+      event =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.find(&(&1.event_type == "scan.run" and &1.subject_id == server.id))
+
+      assert event
+      assert event.metadata["outcome"] == "error"
+    end
+
+    test "writes a scan.run audit event on skip" do
+      {:ok, server} = Fleet.create_server(%{name: "audit-skip", host: "10.0.0.22"})
+
+      :ok = perform_job(PatchScan, %{"server_id" => server.id})
+
+      event =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.find(&(&1.event_type == "scan.run" and &1.subject_id == server.id))
+
+      assert event
+      assert event.metadata["outcome"] == "skip"
+    end
+  end
+
   describe "perform/1 with all: true" do
     test "fan-outs one job per server" do
       {:ok, s1} = Fleet.create_server(%{name: "a", host: "10.0.0.1"})

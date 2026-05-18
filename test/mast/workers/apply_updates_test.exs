@@ -108,4 +108,59 @@ defmodule Mast.Workers.ApplyUpdatesTest do
       assert_receive {:run_event, ^run_id, {:exit, 0}}
     end
   end
+
+  describe "audit logging" do
+    test "writes an apply.run audit event with exit code on success" do
+      {:ok, server} = Fleet.create_server(%{name: "apply-audit", host: "10.0.0.30"})
+      {:ok, server} = Fleet.update_server_meta(server, %{package_manager: "apt"})
+
+      Stub.expect_stream(
+        server,
+        "sudo -n apt-get update -qq && sudo -n DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
+        [{:exit, 0}]
+      )
+
+      Stub.expect(server, "sudo -n apt-get update -qq", {:ok, ""})
+      Stub.expect(server, "LANG=C apt list --upgradable 2>/dev/null", {:ok, "Listing... Done\n"})
+
+      :ok =
+        perform_job(ApplyUpdates, %{
+          "server_id" => server.id,
+          "run_id" => "audit-run",
+          "scope" => "all"
+        })
+
+      event =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.find(&(&1.event_type == "apply.run" and &1.subject_id == server.id))
+
+      assert event
+      assert event.metadata["outcome"] == "exit"
+      assert event.metadata["exit_code"] == 0
+      assert event.metadata["scope"] == "all"
+    end
+
+    test "writes an apply.run audit event when build fails (unsafe package)" do
+      {:ok, server} = Fleet.create_server(%{name: "apply-bad", host: "10.0.0.31"})
+      {:ok, server} = Fleet.update_server_meta(server, %{package_manager: "apt"})
+
+      {:error, :invalid_package} =
+        perform_job(ApplyUpdates, %{
+          "server_id" => server.id,
+          "run_id" => "audit-bad",
+          "scope" => "package",
+          "package" => "foo; rm -rf /"
+        })
+
+      event =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.find(&(&1.event_type == "apply.run" and &1.subject_id == server.id))
+
+      assert event
+      assert event.metadata["outcome"] == "error"
+      assert event.metadata["reason"] =~ "invalid_package"
+    end
+  end
 end
