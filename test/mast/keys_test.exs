@@ -17,9 +17,19 @@ defmodule Mast.KeysTest do
       # body is encrypted at rest; we verify it round-trips below.
     end
 
-    test "stores an rsa key" do
+    test "stores an rsa key (OpenSSH new format)" do
       assert {:ok, key} =
                Keys.create_key(%{name: "prod rsa", body: pem("test_rsa")})
+
+      assert key.algorithm == "rsa"
+      assert key.fingerprint =~ ~r/^SHA256:/
+    end
+
+    test "stores an rsa key (classic PEM format, '-----BEGIN RSA PRIVATE KEY-----')" do
+      # AWS-style .pem files use the classic ASN.1-wrapped format, not the
+      # newer OpenSSH binary format. Both must be accepted.
+      assert {:ok, key} =
+               Keys.create_key(%{name: "aws pem", body: pem("test_rsa_pem")})
 
       assert key.algorithm == "rsa"
       assert key.fingerprint =~ ~r/^SHA256:/

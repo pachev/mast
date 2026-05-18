@@ -47,8 +47,16 @@ defmodule Mast.Keys.Parser do
   def parse(_), do: {:error, :not_a_string}
 
   defp do_parse(pem) do
-    with [{{:no_asn1, :new_openssh}, body, _}] <- safe_pem_decode(pem),
-         <<"openssh-key-v1", 0, rest::binary>> <- body,
+    case safe_pem_decode(pem) do
+      [entry | _] -> parse_entry(entry)
+      _ -> {:error, :invalid_format}
+    end
+  end
+
+  # --- OpenSSH new format (-----BEGIN OPENSSH PRIVATE KEY-----) -------------
+
+  defp parse_entry({{:no_asn1, :new_openssh}, body, _}) do
+    with <<"openssh-key-v1", 0, rest::binary>> <- body,
          {:ok, cipher, rest} <- ssh_string(rest),
          {:ok, _kdf, rest} <- ssh_string(rest),
          {:ok, _kdfopts, rest} <- ssh_string(rest),
@@ -67,6 +75,72 @@ defmodule Mast.Keys.Parser do
       _ -> {:error, :invalid_format}
     end
   end
+
+  # --- Classic PEM: -----BEGIN RSA PRIVATE KEY----- -------------------------
+
+  defp parse_entry({:RSAPrivateKey, der, encryption_tag}) do
+    case der_to_rsa_pub_blob(der) do
+      {:ok, pub_blob} ->
+        {:ok,
+         %{
+           algorithm: "rsa",
+           fingerprint: fingerprint(pub_blob),
+           comment: nil,
+           encrypted?: encryption_tag != :not_encrypted
+         }}
+
+      :error ->
+        {:error, :invalid_format}
+    end
+  end
+
+  # --- Classic PEM: -----BEGIN EC PRIVATE KEY----- --------------------------
+
+  defp parse_entry({:ECPrivateKey, _der, encryption_tag}) do
+    # We don't compute the fingerprint of EC keys in classic PEM yet — the
+    # encoding for the SSH wire format requires the curve OID, which we'd
+    # rather get from the OpenSSH-format variant. AWS .pems are RSA in
+    # practice; classic EC is rare. Accept but flag.
+    {:error, :unsupported_classic_ec}
+    |> case do
+      _ when encryption_tag == :not_encrypted -> {:error, :unsupported_classic_ec}
+      _ -> {:error, :invalid_format}
+    end
+  end
+
+  defp parse_entry(_), do: {:error, :invalid_format}
+
+  # Build the SSH ssh-rsa public-key blob from a decoded RSAPrivateKey ASN.1:
+  #   ssh-string "ssh-rsa"
+  #   ssh-mpint  e
+  #   ssh-mpint  n
+  defp der_to_rsa_pub_blob(der) do
+    try do
+      rsa = :public_key.der_decode(:RSAPrivateKey, der)
+      # RSAPrivateKey is a record; positionally: version, modulus, publicExponent, ...
+      n = elem(rsa, 2)
+      e = elem(rsa, 3)
+      blob = ssh_string_encode("ssh-rsa") <> ssh_mpint(e) <> ssh_mpint(n)
+      {:ok, blob}
+    rescue
+      _ -> :error
+    end
+  end
+
+  defp ssh_string_encode(bin) when is_binary(bin), do: <<byte_size(bin)::32, bin::binary>>
+
+  # SSH multi-precision integer: positive integer in big-endian with a leading
+  # zero byte if the high bit is set (to keep it unsigned).
+  defp ssh_mpint(0), do: <<0::32>>
+
+  defp ssh_mpint(n) when is_integer(n) and n > 0 do
+    bytes = :binary.encode_unsigned(n)
+    bytes = if <<msb, _::binary>> = bytes, do: maybe_pad(bytes, msb), else: bytes
+    <<byte_size(bytes)::32, bytes::binary>>
+  end
+
+  defp maybe_pad(bytes, msb) when msb >= 0x80, do: <<0, bytes::binary>>
+  defp maybe_pad(bytes, _), do: bytes
 
   defp safe_pem_decode(pem) do
     try do
