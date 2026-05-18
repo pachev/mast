@@ -86,7 +86,10 @@ defmodule MastWeb.AppLive.View do
     ~H"""
     <header class="-mx-6 lg:-mx-10 -mt-6 lg:-mt-8 mb-6 px-6 lg:px-10 pt-4 pb-4 border-b border-[var(--mast-border)]">
       <div class="flex items-center gap-1.5 text-[13px]">
-        <.link navigate={~p"/"} class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]">
+        <.link
+          navigate={~p"/"}
+          class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]"
+        >
           Servers
         </.link>
         <span class="text-[var(--mast-font-tertiary)]">/</span>

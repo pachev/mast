@@ -26,7 +26,12 @@ defmodule Mast.Apps.Probe.Stub do
   @doc "Convenience for tests."
   def plant(server, response) do
     current = Application.get_env(:mast, __MODULE__, [])
-    Application.put_env(:mast, __MODULE__, List.keystore(current, server.id, 0, {server.id, response}))
+
+    Application.put_env(
+      :mast,
+      __MODULE__,
+      List.keystore(current, server.id, 0, {server.id, response})
+    )
   end
 
   @doc "Clears all planted responses."

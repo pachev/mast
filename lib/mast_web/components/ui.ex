@@ -946,7 +946,10 @@ defmodule MastWeb.Components.UI do
   end
 
   defp chip_variant("running"), do: "bg-[var(--mast-accent-muted)] text-[var(--mast-accent)]"
-  defp chip_variant("warning"), do: "bg-amber-100 text-[var(--mast-status-warning)] dark:bg-amber-950/40"
+
+  defp chip_variant("warning"),
+    do: "bg-amber-100 text-[var(--mast-status-warning)] dark:bg-amber-950/40"
+
   defp chip_variant(_), do: "bg-[var(--mast-bg-tertiary)] text-[var(--mast-font-secondary)]"
 
   defp chip_dot("running"), do: "bg-[var(--mast-status-online)]"

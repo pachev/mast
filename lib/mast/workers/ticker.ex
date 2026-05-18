@@ -41,8 +41,11 @@ defmodule Mast.Workers.Ticker do
 
   defp enqueue(worker) do
     case worker.new(%{all: true}) |> Oban.insert() do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Ticker failed to enqueue #{inspect(worker)}: #{inspect(reason)}")
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Ticker failed to enqueue #{inspect(worker)}: #{inspect(reason)}")
     end
   end
 end
