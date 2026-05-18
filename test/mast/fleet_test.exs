@@ -97,6 +97,41 @@ defmodule Mast.FleetTest do
     end
   end
 
+  describe "private_key association" do
+    test "create_server accepts a private_key_id" do
+      {:ok, key} =
+        Mast.Keys.create_key(%{
+          name: "ed25519 fixture",
+          body: File.read!("test/fixtures/test_ed25519")
+        })
+
+      assert {:ok, server} =
+               Fleet.create_server(%{
+                 name: "with-key",
+                 host: "10.0.0.7",
+                 private_key_id: key.id
+               })
+
+      assert server.private_key_id == key.id
+    end
+
+    test "deleting a key nilifies private_key_id on referencing servers" do
+      {:ok, key} =
+        Mast.Keys.create_key(%{
+          name: "k1",
+          body: File.read!("test/fixtures/test_ed25519")
+        })
+
+      {:ok, server} =
+        Fleet.create_server(%{name: "s1", host: "10.0.0.7", private_key_id: key.id})
+
+      {:ok, _} = Mast.Keys.delete_key(key)
+
+      reloaded = Fleet.get_server!(server.id)
+      assert reloaded.private_key_id == nil
+    end
+  end
+
   describe "mark_unreachable/1" do
     test "increments counter and flips status to down" do
       {:ok, s} = Fleet.create_server(@valid)

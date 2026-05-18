@@ -33,6 +33,8 @@ defmodule Mast.Fleet.Server do
     field :last_scan_at, :utc_datetime_usec
     field :last_scan, :map
 
+    belongs_to :private_key, Mast.Keys.PrivateKey
+
     timestamps(type: :utc_datetime_usec)
   end
 
@@ -51,12 +53,13 @@ defmodule Mast.Fleet.Server do
   @doc false
   def changeset(server, attrs) do
     server
-    |> cast(attrs, [:name, :host, :user, :port])
+    |> cast(attrs, [:name, :host, :user, :port, :private_key_id])
     |> validate_required([:name, :host])
     |> validate_length(:name, min: 1, max: 64)
     |> validate_length(:host, min: 1, max: 255)
     |> validate_number(:port, greater_than: 0, less_than_or_equal_to: 65_535)
     |> unique_constraint(:name)
+    |> foreign_key_constraint(:private_key_id)
   end
 
   @doc false
