@@ -17,7 +17,16 @@ defmodule Mast.SSH.SSHKit do
 
   @impl true
   def run(%Server{host: host, user: user, port: port}, command) when is_binary(command) do
-    context = SSHKit.context({host, [port: port, user: user]})
+    opts = [
+      port: port,
+      user: user,
+      user_dir: String.to_charlist(Path.expand("~/.ssh")),
+      silently_accept_hosts: true,
+      user_interaction: false,
+      timeout: 10_000
+    ]
+
+    context = SSHKit.context({host, opts})
 
     case SSHKit.run(context, command) do
       [{:ok, output, 0}] ->

@@ -20,6 +20,9 @@ config :mast, :ssh, Mast.SSH.Stub
 # Oban.Testing helpers (perform_job, assert_enqueued).
 config :mast, Oban, testing: :manual
 
+# No heartbeat in tests.
+config :mast, :ticker_enabled, false
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :mast, MastWeb.Endpoint,

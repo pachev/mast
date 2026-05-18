@@ -1,6 +1,10 @@
 import Config
 
 # Configure your database
+# Fast feedback while we're building things out. Production should keep the
+# default 60s cron in config.exs.
+config :mast, :check_interval_ms, 30_000
+
 config :mast, Mast.Repo,
   username: "mast",
   password: "mast",

@@ -13,6 +13,7 @@ defmodule Mast.Application do
       {DNSCluster, query: Application.get_env(:mast, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Mast.PubSub},
       {Oban, Application.fetch_env!(:mast, Oban)},
+      Mast.Workers.Ticker,
       MastWeb.Endpoint
     ]
 

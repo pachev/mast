@@ -21,9 +21,10 @@ config :mast, Oban,
   repo: Mast.Repo,
   queues: [checks: 5, runs: 2],
   plugins: [
+    # ConnectionCheck fan-out is driven by Mast.Workers.Ticker (sub-minute).
+    # PatchScan stays on cron — weekly is plenty.
     {Oban.Plugins.Cron,
      crontab: [
-       {"* * * * *", Mast.Workers.ConnectionCheck, args: %{all: true}},
        {"0 0 * * 0", Mast.Workers.PatchScan, args: %{all: true}}
      ]}
   ]
