@@ -33,7 +33,13 @@ defmodule Mast.Fleet.Server do
     field :last_scan_at, :utc_datetime_usec
     field :last_scan, :map
 
+    # Path to `bin/<release>` for the primary Elixir app on this host.
+    # Mast invokes `<release_command> rpc "..."` over SSH to introspect.
+    # See ADR 0004 (revised).
+    field :release_command, :string
+
     belongs_to :private_key, Mast.Keys.PrivateKey
+    has_many :applications, Mast.Apps.Application
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -60,6 +66,33 @@ defmodule Mast.Fleet.Server do
     |> validate_number(:port, greater_than: 0, less_than_or_equal_to: 65_535)
     |> unique_constraint(:name)
     |> foreign_key_constraint(:private_key_id)
+  end
+
+  @doc """
+  Changeset for the app-monitoring fields. Currently just `release_command`.
+  """
+  def monitoring_changeset(server, attrs) do
+    server
+    |> cast(attrs, [:release_command])
+    |> validate_length(:release_command, max: 512)
+    |> validate_release_command()
+  end
+
+  defp validate_release_command(changeset) do
+    case get_change(changeset, :release_command) do
+      nil ->
+        changeset
+
+      "" ->
+        put_change(changeset, :release_command, nil)
+
+      path when is_binary(path) ->
+        if String.starts_with?(path, "/") and not String.contains?(path, "\n") do
+          changeset
+        else
+          add_error(changeset, :release_command, "must be an absolute path")
+        end
+    end
   end
 
   @doc false

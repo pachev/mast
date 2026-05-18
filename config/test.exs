@@ -15,6 +15,7 @@ config :mast, Mast.Repo,
   pool_size: System.schedulers_online() * 2
 
 config :mast, :ssh, Mast.SSH.Stub
+config :mast, :apps_probe, Mast.Apps.Probe.Stub
 
 # Oban in :manual mode — no auto-cron, no async dispatch. Tests use
 # Oban.Testing helpers (perform_job, assert_enqueued).

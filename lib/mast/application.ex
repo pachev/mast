@@ -14,6 +14,7 @@ defmodule Mast.Application do
         Mast.Vault,
         {DNSCluster, query: Application.get_env(:mast, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Mast.PubSub},
+        {Task.Supervisor, name: Mast.TaskSupervisor},
         {Oban, Application.fetch_env!(:mast, Oban)},
         Mast.Workers.Ticker,
         MastWeb.Endpoint

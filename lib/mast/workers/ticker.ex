@@ -32,12 +32,17 @@ defmodule Mast.Workers.Ticker do
 
   @impl true
   def handle_info(:tick, state) do
-    case Mast.Workers.ConnectionCheck.new(%{all: true}) |> Oban.insert() do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Ticker failed to enqueue: #{inspect(reason)}")
-    end
+    enqueue(Mast.Workers.ConnectionCheck)
+    enqueue(Mast.Workers.AppProbe)
 
     Process.send_after(self(), :tick, state.interval)
     {:noreply, state}
+  end
+
+  defp enqueue(worker) do
+    case worker.new(%{all: true}) |> Oban.insert() do
+      {:ok, _} -> :ok
+      {:error, reason} -> Logger.warning("Ticker failed to enqueue #{inspect(worker)}: #{inspect(reason)}")
+    end
   end
 end

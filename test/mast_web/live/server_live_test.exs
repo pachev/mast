@@ -15,7 +15,7 @@ defmodule MastWeb.ServerLiveTest do
 
       assert html =~ "alpha"
       assert html =~ "10.0.0.7"
-      assert html =~ "Apply All Updates"
+      assert html =~ "Apply Updates"
     end
 
     test "shows scan results when present", %{conn: conn} do
@@ -33,7 +33,7 @@ defmodule MastWeb.ServerLiveTest do
           }
         })
 
-      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}?tab=updates")
 
       assert html =~ "openssl"
       assert html =~ "curl"
@@ -51,7 +51,7 @@ defmodule MastWeb.ServerLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/servers/#{server}")
 
-      view |> element("button", "Apply All Updates") |> render_click()
+      view |> element("button", "Apply Updates") |> render_click()
 
       assert_enqueued(
         worker: ApplyUpdates,
@@ -67,7 +67,7 @@ defmodule MastWeb.ServerLiveTest do
 
       refute render(view) =~ "Scanning…"
 
-      html = view |> element("button", "Scan updates") |> render_click()
+      html = view |> element("button", "Scan Updates") |> render_click()
       assert html =~ "Scanning…"
 
       # When the scan completes, the indicator clears.
@@ -82,7 +82,7 @@ defmodule MastWeb.ServerLiveTest do
 
     test "shows distinct copy for never-scanned vs zero-updates", %{conn: conn} do
       {:ok, never} = Fleet.create_server(%{name: "fresh", host: "10.0.0.12"})
-      {:ok, _view, html} = live(conn, ~p"/servers/#{never}")
+      {:ok, _view, html} = live(conn, ~p"/servers/#{never}?tab=updates")
       assert html =~ "Not scanned yet"
 
       {:ok, zero} = Fleet.create_server(%{name: "clean", host: "10.0.0.13"})
@@ -93,7 +93,7 @@ defmodule MastWeb.ServerLiveTest do
           last_scan: %{"total" => 0, "updates" => []}
         })
 
-      {:ok, _view2, html2} = live(conn, ~p"/servers/#{zero}")
+      {:ok, _view2, html2} = live(conn, ~p"/servers/#{zero}?tab=updates")
       assert html2 =~ "All up to date"
       refute html2 =~ "Not scanned yet"
     end
@@ -104,7 +104,7 @@ defmodule MastWeb.ServerLiveTest do
 
       {:ok, view, _} = live(conn, ~p"/servers/#{server}")
 
-      view |> element("button", "Scan updates") |> render_click()
+      view |> element("button", "Scan Updates") |> render_click()
       assert render(view) =~ "Scanning…"
 
       # Simulate the worker reporting an error.

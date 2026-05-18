@@ -71,4 +71,14 @@ defmodule Mast.Fleet do
     |> Server.scan_changeset(attrs)
     |> Repo.update()
   end
+
+  @doc """
+  Updates app-monitoring config on the server (release_command). See
+  ADR 0004 (revised).
+  """
+  def update_monitoring(%Server{} = s, attrs) do
+    s
+    |> Server.monitoring_changeset(attrs)
+    |> Repo.update()
+  end
 end

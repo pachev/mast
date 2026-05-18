@@ -20,6 +20,10 @@ defmodule MastWeb.Router do
     live "/", DashboardLive, :index
     live "/servers/new", DashboardLive, :new
     live "/servers/:id", ServerLive, :show
+    live "/apps/:id", AppLive, :show
+    live "/alerts", AlertsLive, :index
+    live "/audit", AuditLive, :index
+    live "/settings", SettingsLive, :index
   end
 
   # Other scopes may use custom stacks.

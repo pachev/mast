@@ -26,7 +26,7 @@ defmodule Mast.SSH.SSHKit do
         {:ok, render_output(output)}
 
       [{:ok, output, exit}] ->
-        {:error, {:non_zero_exit, exit, render_output(output)}}
+        {:error, {:non_zero_exit, exit, render_output(output, include_stderr: true)}}
 
       [{:error, reason}] ->
         {:error, reason}
@@ -112,16 +112,24 @@ defmodule Mast.SSH.SSHKit do
 
   defp key_pem(_), do: nil
 
-  defp render_output(output) when is_list(output) do
+  defp render_output(output, opts \\ [])
+
+  defp render_output(output, opts) when is_list(output) do
+    include_stderr = Keyword.get(opts, :include_stderr, false)
+
     output
     |> Enum.filter(fn
       {:stdout, _} -> true
+      {:stderr, _} -> include_stderr
       _ -> false
     end)
-    |> Enum.map_join("", fn {:stdout, data} -> data end)
+    |> Enum.map_join("", fn
+      {:stdout, data} -> data
+      {:stderr, data} -> data
+    end)
   end
 
-  defp render_output(_), do: ""
+  defp render_output(_, _), do: ""
 
   # Erlang's :ssh scans user_dir for id_rsa, id_ed25519, etc. Operators with
   # non-standard key paths should set a custom user_dir via:
