@@ -81,6 +81,8 @@ defmodule MastWeb do
       import Phoenix.HTML
       # Core UI components
       import MastWeb.CoreComponents
+      # Mast design-system components
+      import MastWeb.Components.UI
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

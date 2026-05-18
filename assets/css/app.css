@@ -10,85 +10,150 @@
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
 
-/* daisyUI Tailwind Plugin. You can update this file by fetching the latest version with:
-   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js
-   Make sure to look at the daisyUI changelog: https://daisyui.com/docs/changelog/ */
+/* daisyUI Tailwind Plugin. */
 @plugin "../vendor/daisyui" {
   themes: false;
 }
 
-/* daisyUI theme plugin. You can update this file by fetching the latest version with:
-  curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
-  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
-  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
-@plugin "../vendor/daisyui-theme" {
-  name: "dark";
-  default: false;
-  prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(30.33% 0.016 252.42);
-  --color-base-200: oklch(25.26% 0.014 253.1);
-  --color-base-300: oklch(20.15% 0.012 254.09);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: oklch(58% 0.233 277.117);
-  --color-primary-content: oklch(96% 0.018 272.314);
-  --color-secondary: oklch(58% 0.233 277.117);
-  --color-secondary-content: oklch(96% 0.018 272.314);
-  --color-accent: oklch(60% 0.25 292.717);
-  --color-accent-content: oklch(96% 0.016 293.756);
-  --color-neutral: oklch(37% 0.044 257.287);
-  --color-neutral-content: oklch(98% 0.003 247.858);
-  --color-info: oklch(58% 0.158 241.966);
-  --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(60% 0.118 184.704);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
-}
-
+/* daisyUI theme plugin — Mast design system (sage-green on warm off-white / dark warm gray).
+   Tokens mirror the pencil component library so daisyUI utilities pick up the design
+   language automatically. */
 @plugin "../vendor/daisyui-theme" {
   name: "light";
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(70% 0.213 47.604);
-  --color-primary-content: oklch(98% 0.016 73.684);
-  --color-secondary: oklch(55% 0.027 264.364);
-  --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(44% 0.017 285.786);
-  --color-neutral-content: oklch(98% 0 0);
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
+  --color-base-100: #FBFAF8;        /* card / surface */
+  --color-base-200: #F7F6F4;        /* page bg */
+  --color-base-300: #EFEEE9;        /* secondary surface */
+  --color-base-content: #111827;
+  --color-primary: #4A7C59;         /* sage accent */
+  --color-primary-content: #FFFFFF;
+  --color-secondary: #6B7280;
+  --color-secondary-content: #FBFAF8;
+  --color-accent: #4A7C59;
+  --color-accent-content: #FFFFFF;
+  --color-neutral: #D8D6CE;         /* border */
+  --color-neutral-content: #111827;
+  --color-info: #3B82F6;
+  --color-info-content: #FFFFFF;
+  --color-success: #3D8B4F;
+  --color-success-content: #FFFFFF;
+  --color-warning: #F59E0B;
+  --color-warning-content: #1A1A1A;
+  --color-error: #EF4444;
+  --color-error-content: #FFFFFF;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;           /* 8px = --radius-md */
+  --radius-box: 0.75rem;            /* 12px = --radius-lg */
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
   --noise: 0;
+}
+
+@plugin "../vendor/daisyui-theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: #191917;        /* card */
+  --color-base-200: #111210;        /* page bg */
+  --color-base-300: #181916;        /* secondary surface */
+  --color-base-content: #F1F5F9;
+  --color-primary: #8FBC8F;         /* sage accent (dark) */
+  --color-primary-content: #0C1210;
+  --color-secondary: #94A3B8;
+  --color-secondary-content: #131311;
+  --color-accent: #8FBC8F;
+  --color-accent-content: #0C1210;
+  --color-neutral: #2C2D28;         /* border */
+  --color-neutral-content: #F1F5F9;
+  --color-info: #60A5FA;
+  --color-info-content: #0C1210;
+  --color-success: #6DBF80;
+  --color-success-content: #0C1210;
+  --color-warning: #FBBF24;
+  --color-warning-content: #0C1210;
+  --color-error: #F87171;
+  --color-error-content: #0C1210;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Mast design tokens — exposed for raw use outside daisyUI utilities.
+   These mirror the pencil component library and adapt to light/dark via the
+   [data-theme] variant below. */
+:root,
+[data-theme="light"] {
+  --mast-accent: #4A7C59;
+  --mast-accent-hover: #3D6849;
+  --mast-accent-muted: #EDF3EF;
+  --mast-accent-text: #FFFFFF;
+  --mast-bg-primary: #F7F6F4;
+  --mast-bg-secondary: #EFEEE9;
+  --mast-bg-card: #FBFAF8;
+  --mast-bg-card-hover: #F3F2EE;
+  --mast-bg-input: #FBFAF8;
+  --mast-bg-sidebar: #F1F0EC;
+  --mast-bg-tertiary: #E4E3DC;
+  --mast-border: #D8D6CE;
+  --mast-border-focus: #4A7C59;
+  --mast-font-primary: #111827;
+  --mast-font-secondary: #6B7280;
+  --mast-font-tertiary: #9CA3AF;
+  --mast-status-online: #3D8B4F;
+  --mast-status-offline: #EF4444;
+  --mast-status-warning: #F59E0B;
+  --mast-chart-blue: #3B82F6;
+  --mast-chart-green: #4A7C59;
+  --mast-chart-orange: #F97316;
+  --mast-chart-purple: #8B5CF6;
+  --mast-shadow: rgba(42, 40, 15, 0.05);
+}
+
+[data-theme="dark"] {
+  --mast-accent: #8FBC8F;
+  --mast-accent-hover: #A8D4A8;
+  --mast-accent-muted: #1A2319;
+  --mast-accent-text: #0C1210;
+  --mast-bg-primary: #111210;
+  --mast-bg-secondary: #181916;
+  --mast-bg-card: #191917;
+  --mast-bg-card-hover: #212220;
+  --mast-bg-input: #131311;
+  --mast-bg-sidebar: #131412;
+  --mast-bg-tertiary: #222320;
+  --mast-border: #2C2D28;
+  --mast-border-focus: #8FBC8F;
+  --mast-font-primary: #F1F5F9;
+  --mast-font-secondary: #94A3B8;
+  --mast-font-tertiary: #64748B;
+  --mast-status-online: #6DBF80;
+  --mast-status-offline: #F87171;
+  --mast-status-warning: #FBBF24;
+  --mast-chart-blue: #60A5FA;
+  --mast-chart-green: #8FBC8F;
+  --mast-chart-orange: #FB923C;
+  --mast-chart-purple: #A78BFA;
+  --mast-shadow: rgba(0, 0, 0, 0.25);
+}
+
+/* Typography */
+html, body {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.font-mono, code, kbd, pre, samp {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* Add variants based on LiveView classes */
@@ -102,4 +167,7 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
-/* This file is for your main application CSS */
+/* Subtle scrollbars in log/code panels */
+.mast-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.mast-scroll::-webkit-scrollbar-thumb { background: var(--mast-border); border-radius: 4px; }
+.mast-scroll::-webkit-scrollbar-track { background: transparent; }

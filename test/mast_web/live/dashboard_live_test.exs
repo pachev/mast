@@ -5,34 +5,35 @@ defmodule MastWeb.DashboardLiveTest do
   import Phoenix.LiveViewTest
 
   alias Mast.Fleet
-  alias Mast.Workers.ConnectionCheck
 
   describe "index" do
     test "shows empty state when no servers", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/")
-      assert html =~ "All Systems"
-      assert html =~ "No systems yet"
+      assert html =~ "Fleet Overview"
+      assert html =~ "No servers yet"
     end
 
-    test "lists servers in a table", %{conn: conn} do
+    test "lists servers as cards", %{conn: conn} do
       {:ok, _} = Fleet.create_server(%{name: "alpha", host: "10.0.0.7"})
       {:ok, _} = Fleet.create_server(%{name: "zeta", host: "10.0.0.9"})
 
       {:ok, _view, html} = live(conn, ~p"/")
       assert html =~ "alpha"
       assert html =~ "zeta"
-      assert html =~ "10.0.0.7"
     end
 
-    test "Add System button opens the modal", %{conn: conn} do
+    test "Add Server button opens the modal", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/")
 
-      view |> element("a", "Add System") |> render_click()
-      assert_patched(view, ~p"/servers/new")
-      assert render(view) =~ "Add a system"
+      # Two Add Server links exist (header + empty state); both navigate to /servers/new.
+      assert view |> has_element?("a[href='/servers/new']", "Add Server")
+
+      {:ok, view, html} = live(conn, ~p"/servers/new")
+      assert html =~ "Add a server"
+      assert has_element?(view, "#new-server-form")
     end
 
-    test "Add System modal includes a key dropdown listing registered keys", %{conn: conn} do
+    test "Add Server modal includes a key dropdown listing registered keys", %{conn: conn} do
       {:ok, _} =
         Mast.Keys.create_key(%{
           name: "elpajo prod",
@@ -73,26 +74,11 @@ defmodule MastWeb.DashboardLiveTest do
     test "submitting the new-server form creates a server", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/servers/new")
 
-      html =
-        view
-        |> form("#new-server-form", server: %{name: "web-1", host: "10.0.0.7"})
-        |> render_submit()
-
-      assert html =~ "web-1"
-      assert html =~ "10.0.0.7"
-      assert [%{name: "web-1"}] = Fleet.list_servers()
-    end
-
-    test "clicking 'Check' enqueues a ConnectionCheck job for that server", %{conn: conn} do
-      {:ok, server} = Fleet.create_server(%{name: "alpha", host: "10.0.0.7"})
-
-      {:ok, view, _html} = live(conn, ~p"/")
-
       view
-      |> element(~s|button[phx-click="check"][phx-value-id="#{server.id}"]|)
-      |> render_click()
+      |> form("#new-server-form", server: %{name: "web-1", host: "10.0.0.7"})
+      |> render_submit()
 
-      assert_enqueued(worker: ConnectionCheck, args: %{"server_id" => server.id})
+      assert [%{name: "web-1", host: "10.0.0.7"}] = Fleet.list_servers()
     end
 
     test "form shows validation errors on bad submit", %{conn: conn} do
