@@ -14,6 +14,8 @@ defmodule Mast.Workers.PatchScan do
     max_attempts: 3,
     unique: [period: 60, fields: [:worker, :args]]
 
+  require Logger
+
   alias Mast.Audit
   alias Mast.Fleet
   alias Mast.Patches.Apt
@@ -31,6 +33,7 @@ defmodule Mast.Workers.PatchScan do
 
   def perform(%Oban.Job{args: %{"server_id" => server_id}}) do
     server = Fleet.get_server!(server_id)
+    Logger.metadata(server_id: server.id, private_key_id: server.private_key_id)
 
     case scan(server) do
       {:ok, scan} ->
@@ -54,8 +57,6 @@ defmodule Mast.Workers.PatchScan do
         :ok
 
       {:error, reason} ->
-        require Logger
-
         Logger.warning("PatchScan failed for server #{server.name}: #{inspect(reason)}")
 
         audit(server, "error", %{"reason" => format_reason(reason)})

@@ -21,6 +21,8 @@ defmodule Mast.Workers.ConnectionCheck do
     max_attempts: 3,
     unique: [period: 50, fields: [:worker, :args]]
 
+  require Logger
+
   alias Mast.Fleet
   alias Mast.Hosts.{Metrics, OS}
   alias Mast.SSH
@@ -36,6 +38,7 @@ defmodule Mast.Workers.ConnectionCheck do
 
   def perform(%Oban.Job{args: %{"server_id" => server_id}}) do
     server = Fleet.get_server!(server_id)
+    Logger.metadata(server_id: server.id, private_key_id: server.private_key_id)
 
     case probe(server) do
       {:ok, attrs} ->

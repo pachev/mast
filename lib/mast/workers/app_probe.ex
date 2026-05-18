@@ -13,6 +13,8 @@ defmodule Mast.Workers.AppProbe do
     max_attempts: 3,
     unique: [period: 50, fields: [:worker, :args]]
 
+  require Logger
+
   alias Mast.{Apps, Fleet}
 
   @impl Oban.Worker
@@ -28,6 +30,7 @@ defmodule Mast.Workers.AppProbe do
 
   def perform(%Oban.Job{args: %{"server_id" => server_id}}) do
     server = Fleet.get_server!(server_id)
+    Logger.metadata(server_id: server.id, private_key_id: server.private_key_id)
 
     case Apps.Probe.probe(server) do
       {:ok, observations} ->

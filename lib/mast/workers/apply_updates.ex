@@ -25,6 +25,8 @@ defmodule Mast.Workers.ApplyUpdates do
   """
   use Oban.Worker, queue: :runs, max_attempts: 1
 
+  require Logger
+
   alias Mast.Audit
   alias Mast.Fleet
   alias Mast.Patches.Apt
@@ -36,6 +38,7 @@ defmodule Mast.Workers.ApplyUpdates do
         args: %{"server_id" => server_id, "run_id" => run_id} = args
       }) do
     server = Fleet.get_server!(server_id)
+    Logger.metadata(server_id: server.id, private_key_id: server.private_key_id, run_id: run_id)
     scope = Map.get(args, "scope", "all")
     package = Map.get(args, "package")
 

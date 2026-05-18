@@ -67,6 +67,7 @@ defmodule Mast.MixProject do
       {:oban, "~> 2.22"},
       {:cloak, "~> 1.1"},
       {:cloak_ecto, "~> 1.3"},
+      {:logger_json, "~> 7.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

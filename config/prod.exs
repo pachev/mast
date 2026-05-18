@@ -22,5 +22,12 @@ config :mast, MastWeb.Endpoint,
 # Do not print debug messages in production
 config :logger, level: :info
 
+# JSON-formatted logs for production. Dev/test keep the default text logger
+# so terminal output stays readable. See issue #2.
+config :logger, :default_handler,
+  formatter:
+    {LoggerJSON.Formatters.Basic,
+     metadata: [:request_id, :server_id, :private_key_id, :run_id, :job_id]}
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
