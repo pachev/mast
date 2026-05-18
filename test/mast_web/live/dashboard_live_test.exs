@@ -1,9 +1,11 @@
 defmodule MastWeb.DashboardLiveTest do
   use MastWeb.ConnCase, async: true
+  use Oban.Testing, repo: Mast.Repo
 
   import Phoenix.LiveViewTest
 
   alias Mast.Fleet
+  alias Mast.Workers.ConnectionCheck
 
   describe "index" do
     test "shows empty state when no servers", %{conn: conn} do
@@ -41,6 +43,18 @@ defmodule MastWeb.DashboardLiveTest do
       assert html =~ "web-1"
       assert html =~ "10.0.0.7"
       assert [%{name: "web-1"}] = Fleet.list_servers()
+    end
+
+    test "clicking 'Check' enqueues a ConnectionCheck job for that server", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "alpha", host: "10.0.0.7"})
+
+      {:ok, view, _html} = live(conn, ~p"/")
+
+      view
+      |> element(~s|button[phx-click="check"][phx-value-id="#{server.id}"]|)
+      |> render_click()
+
+      assert_enqueued(worker: ConnectionCheck, args: %{"server_id" => server.id})
     end
 
     test "form shows validation errors on bad submit", %{conn: conn} do

@@ -70,6 +70,16 @@ defmodule MastWeb.DashboardLive do
     {:noreply, push_patch(socket, to: ~p"/")}
   end
 
+  def handle_event("check", %{"id" => id}, socket) do
+    server = Fleet.get_server!(String.to_integer(id))
+
+    %{server_id: server.id}
+    |> Mast.Workers.ConnectionCheck.new()
+    |> Oban.insert!()
+
+    {:noreply, put_flash(socket, :info, "Checking #{server.name}…")}
+  end
+
   # --- Render ---------------------------------------------------------------
 
   @impl true
@@ -259,12 +269,34 @@ defmodule MastWeb.DashboardLive do
       </div>
       <div class="col-span-3 md:col-span-2 flex items-center justify-end md:justify-start gap-2">
         <span class={agent_dot_class(@server.agent_version)} />
-        <span class="text-xs tabular-nums text-base-content/70">
-          {@server.agent_version || "—"}
+        <span class="text-xs tabular-nums text-base-content/70 flex-1 truncate">
+          {format_last_seen(@server)}
         </span>
+        <button
+          type="button"
+          phx-click="check"
+          phx-value-id={@server.id}
+          class="btn btn-ghost btn-xs"
+          title="Run a connection check now"
+        >
+          Check
+        </button>
       </div>
     </div>
     """
+  end
+
+  defp format_last_seen(%{last_seen_at: nil}), do: "never"
+
+  defp format_last_seen(%{last_seen_at: t}) do
+    diff = DateTime.diff(DateTime.utc_now(), t, :second)
+
+    cond do
+      diff < 60 -> "#{diff}s ago"
+      diff < 3600 -> "#{div(diff, 60)}m ago"
+      diff < 86_400 -> "#{div(diff, 3600)}h ago"
+      true -> "#{div(diff, 86_400)}d ago"
+    end
   end
 
   attr :value, :any, required: true
