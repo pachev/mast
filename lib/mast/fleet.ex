@@ -52,4 +52,23 @@ defmodule Mast.Fleet do
     |> Server.unreachable_changeset()
     |> Repo.update()
   end
+
+  @doc """
+  Updates os_id / package_manager only. Used when the operator pre-fills
+  these (rare) or when tests need them set without going through a full check.
+  """
+  def update_server_meta(%Server{} = s, attrs) do
+    s
+    |> Server.meta_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Stores the result of a patch scan on the server row.
+  """
+  def record_scan(%Server{} = s, attrs) do
+    s
+    |> Server.scan_changeset(attrs)
+    |> Repo.update()
+  end
 end

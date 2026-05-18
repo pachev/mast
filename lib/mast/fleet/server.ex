@@ -29,7 +29,23 @@ defmodule Mast.Fleet.Server do
     field :net_mb_s, :float
     field :agent_version, :string
 
+    field :updates_available, :integer
+    field :last_scan_at, :utc_datetime_usec
+    field :last_scan, :map
+
     timestamps(type: :utc_datetime_usec)
+  end
+
+  @doc false
+  def meta_changeset(server, attrs) do
+    cast(server, attrs, [:os_id, :package_manager])
+  end
+
+  @doc false
+  def scan_changeset(server, attrs) do
+    server
+    |> cast(attrs, [:updates_available, :last_scan])
+    |> put_change(:last_scan_at, DateTime.utc_now())
   end
 
   @doc false
