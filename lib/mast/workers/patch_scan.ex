@@ -44,20 +44,29 @@ defmodule Mast.Workers.PatchScan do
       :skip ->
         :ok
 
-      {:error, _} ->
-        # Don't mark down; ConnectionCheck owns liveness.
+      {:error, reason} ->
+        require Logger
+
+        Logger.warning("PatchScan failed for server #{server.name}: #{inspect(reason)}")
+
         :ok
     end
   end
 
   defp scan(%{package_manager: "apt"} = server) do
-    with {:ok, _} <- SSH.run(server, "apt-get update -qq"),
-         {:ok, out} <- SSH.run(server, "LANG=C apt list --upgradable 2>/dev/null") do
+    update_cmd = sudo(server, "apt-get update -qq")
+    list_cmd = "LANG=C apt list --upgradable 2>/dev/null"
+
+    with {:ok, _} <- SSH.run(server, update_cmd),
+         {:ok, out} <- SSH.run(server, list_cmd) do
       {:ok, Apt.parse(out)}
     end
   end
 
   defp scan(_), do: :skip
+
+  defp sudo(%{user: "root"}, cmd), do: cmd
+  defp sudo(_server, cmd), do: "sudo -n " <> cmd
 
   defp broadcast(msg), do: Phoenix.PubSub.broadcast(Mast.PubSub, "servers", msg)
 end

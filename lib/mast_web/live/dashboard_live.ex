@@ -245,7 +245,10 @@ defmodule MastWeb.DashboardLive do
   defp server_row(assigns) do
     ~H"""
     <div class="grid grid-cols-12 gap-4 items-center text-sm">
-      <div class="col-span-12 md:col-span-3 flex items-center gap-3 min-w-0">
+      <.link
+        navigate={~p"/servers/#{@server.id}"}
+        class="col-span-12 md:col-span-3 flex items-center gap-3 min-w-0 hover:opacity-80"
+      >
         <.status_dot status={@server.status} />
         <div class="min-w-0">
           <div class="font-medium truncate">{@server.name}</div>
@@ -253,7 +256,7 @@ defmodule MastWeb.DashboardLive do
             {@server.user}@{@server.host}:{@server.port}
           </div>
         </div>
-      </div>
+      </.link>
 
       <div class="col-span-6 md:col-span-2">
         <.metric_bar value={@server.cpu} suffix="%" tone={:cpu} />

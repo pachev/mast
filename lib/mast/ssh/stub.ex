@@ -3,8 +3,9 @@ defmodule Mast.SSH.Stub do
   In-memory SSH executor for tests. Backed by an Agent so it works across
   processes (LiveView tests, etc.).
 
-  Use `expect/3` to pre-register a response for a `{server.host, command}`
-  pair, then call `Mast.SSH.run/2` as normal.
+  - `expect/3` pre-registers a `run/2` response for a `{host, command}` pair.
+  - `expect_stream/3` pre-registers an ordered list of stream events for a
+    `{host, command}` pair, replayed in order by `run_stream/4`.
   """
   @behaviour Mast.SSH
 
@@ -13,12 +14,15 @@ defmodule Mast.SSH.Stub do
   use Agent
 
   def start_link(_opts \\ []) do
-    Agent.start_link(fn -> %{responses: %{}, last: %{}} end, name: __MODULE__)
+    Agent.start_link(
+      fn -> %{responses: %{}, streams: %{}, last: %{}} end,
+      name: __MODULE__
+    )
   end
 
   def reset do
     ensure_started()
-    Agent.update(__MODULE__, fn _ -> %{responses: %{}, last: %{}} end)
+    Agent.update(__MODULE__, fn _ -> %{responses: %{}, streams: %{}, last: %{}} end)
   end
 
   def expect(%Server{} = server, command, response) do
@@ -27,6 +31,15 @@ defmodule Mast.SSH.Stub do
 
     Agent.update(__MODULE__, fn state ->
       put_in(state, [:responses, key], response)
+    end)
+  end
+
+  def expect_stream(%Server{} = server, command, events) when is_list(events) do
+    ensure_started()
+    key = {server.host, command}
+
+    Agent.update(__MODULE__, fn state ->
+      put_in(state, [:streams, key], events)
     end)
   end
 
@@ -47,6 +60,23 @@ defmodule Mast.SSH.Stub do
         :error -> {{:error, {:unexpected_command, command}}, state}
       end
     end)
+  end
+
+  @impl true
+  def run_stream(%Server{} = server, command, reducer, acc) do
+    ensure_started()
+
+    events =
+      Agent.get_and_update(__MODULE__, fn state ->
+        state = put_in(state, [:last, server.host], command)
+
+        case Map.fetch(state.streams, {server.host, command}) do
+          {:ok, list} -> {list, state}
+          :error -> {[{:error, {:unexpected_command, command}}], state}
+        end
+      end)
+
+    Enum.reduce(events, acc, reducer)
   end
 
   defp ensure_started do

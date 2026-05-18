@@ -29,4 +29,36 @@ defmodule Mast.SSHTest do
 
     assert Stub.last_command(server) == "echo hi"
   end
+
+  describe "run_stream/3" do
+    test "yields line-events for each stdout chunk and a final exit" do
+      server = %Server{name: "web-4", host: "10.0.0.4", user: "ubuntu", port: 22}
+
+      Stub.expect_stream(server, "echo a; echo b", [
+        {:line, :stdout, "a\n"},
+        {:line, :stdout, "b\n"},
+        {:exit, 0}
+      ])
+
+      collected =
+        SSH.run_stream(server, "echo a; echo b", fn event, acc -> [event | acc] end, [])
+        |> Enum.reverse()
+
+      assert collected == [
+               {:line, :stdout, "a\n"},
+               {:line, :stdout, "b\n"},
+               {:exit, 0}
+             ]
+    end
+
+    test "stub returns error event for unstubbed command" do
+      server = %Server{name: "web-5", host: "10.0.0.5", user: "ubuntu", port: 22}
+
+      events =
+        SSH.run_stream(server, "df -h", fn e, acc -> [e | acc] end, [])
+        |> Enum.reverse()
+
+      assert [{:error, _}] = events
+    end
+  end
 end

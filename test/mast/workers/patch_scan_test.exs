@@ -25,7 +25,7 @@ defmodule Mast.Workers.PatchScanTest do
       {:ok, server} =
         Fleet.update_server_meta(server, %{os_id: "ubuntu", package_manager: "apt"})
 
-      Stub.expect(server, "apt-get update -qq", {:ok, ""})
+      Stub.expect(server, "sudo -n apt-get update -qq", {:ok, ""})
       Stub.expect(server, "LANG=C apt list --upgradable 2>/dev/null", {:ok, @apt_out})
 
       assert :ok = perform_job(PatchScan, %{"server_id" => server.id})
