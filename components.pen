@@ -3,18 +3,6 @@
   "children": [
     {
       "type": "frame",
-      "id": "bi8Au",
-      "x": 0,
-      "y": 0,
-      "name": "Frame",
-      "clip": true,
-      "width": 800,
-      "height": 600,
-      "fill": "#FFFFFF",
-      "layout": "none"
-    },
-    {
-      "type": "frame",
       "id": "O0oQ5q",
       "x": 1000,
       "y": 0,
@@ -7763,7 +7751,7 @@
     {
       "type": "frame",
       "id": "PFTPt",
-      "x": 1100,
+      "x": 1700,
       "y": 3300,
       "name": "Server Detail - Updates Tab",
       "width": 1440,
@@ -10893,7 +10881,7 @@
       "type": "frame",
       "id": "vNOvv",
       "x": 0,
-      "y": 3328,
+      "y": 0,
       "name": "Log Stream Modal",
       "width": 800,
       "fill": "$--bg-secondary",
@@ -12233,7 +12221,7 @@
     {
       "type": "frame",
       "id": "Q9CEI",
-      "x": 3027,
+      "x": 3488,
       "y": 3300,
       "name": "Dashboard - Audit Log",
       "width": 1440,
@@ -17067,7 +17055,7 @@
       "type": "frame",
       "id": "h02gx",
       "x": 0,
-      "y": 9153,
+      "y": 3300,
       "name": "Server Detail - Settings Tab",
       "clip": true,
       "width": 1440,
@@ -18031,6 +18019,110 @@
                       ]
                     }
                   ]
+                },
+                {
+                  "type": "frame",
+                  "id": "F7OEoX",
+                  "name": "Danger Zone Card",
+                  "width": "fill_container",
+                  "fill": "$--bg-card",
+                  "cornerRadius": "$--radius-lg",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#000000"
+                  },
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Ox8ga",
+                      "name": "dangerHdr",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "b9wBpJ",
+                          "name": "dangerCol",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "tuCtY",
+                              "name": "dangerTitle",
+                              "fill": "#000000",
+                              "content": "Danger zone",
+                              "fontFamily": "$--font-family",
+                              "fontSize": 18,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ym89B",
+                              "name": "dangerDesc",
+                              "fill": "$--font-secondary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Removing this server will delete all associated data, including update history, audit logs, and app monitoring configuration. This action cannot be undone.",
+                              "fontFamily": "$--font-family",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "wgGYE",
+                          "name": "dangerSp",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NxLCU",
+                          "name": "removeBtn",
+                          "height": 36,
+                          "fill": "#000000",
+                          "cornerRadius": "$--radius-md",
+                          "gap": 6,
+                          "padding": [
+                            0,
+                            20
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "jce7B",
+                              "name": "removeIcon",
+                              "width": 14,
+                              "height": 14,
+                              "iconFontName": "trash-2",
+                              "iconFontFamily": "lucide",
+                              "fill": "#FFFFFF"
+                            },
+                            {
+                              "type": "text",
+                              "id": "t3vy9",
+                              "name": "removeTxt",
+                              "fill": "#FFFFFF",
+                              "content": "Remove Server",
+                              "fontFamily": "$--font-family",
+                              "fontSize": 13,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -18042,7 +18134,7 @@
       "type": "frame",
       "id": "v24vn",
       "x": 0,
-      "y": 10153,
+      "y": 4410,
       "name": "App Detail - hermes",
       "clip": true,
       "width": 1440,

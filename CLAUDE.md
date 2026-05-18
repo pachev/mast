@@ -43,6 +43,13 @@ When the test names a module/function that doesn't exist, the compile error
 
 For UI-only changes (CSS class tweaks, layout) you can skip TDD, but say so.
 
+## UI Design
+
+We have a `./components.pen` file with the current UI design. When making
+ui changes, check the pencil mcp to see if the design is already there. 
+If not, STOP and ask for an update before implementing. This keeps the code and design in sync.
+
+
 ## Architecture decisions
 
 ADRs live in `docs/adr/` and are numbered sequentially. Read these before
