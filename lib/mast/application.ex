@@ -12,9 +12,7 @@ defmodule Mast.Application do
       Mast.Repo,
       {DNSCluster, query: Application.get_env(:mast, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Mast.PubSub},
-      # Start a worker by calling: Mast.Worker.start_link(arg)
-      # {Mast.Worker, arg},
-      # Start to serve requests, typically the last entry
+      {Oban, Application.fetch_env!(:mast, Oban)},
       MastWeb.Endpoint
     ]
 

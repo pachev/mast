@@ -14,6 +14,20 @@ config :mast,
 # SSH executor (overridden in test). Used by Mast.SSH.run/2.
 config :mast, :ssh, Mast.SSH.SSHKit
 
+# Background job processor. Two queues, kept small.
+#   :checks — periodic liveness/patch scans (1 per server)
+#   :runs   — user-triggered "apply updates" jobs that stream output
+config :mast, Oban,
+  repo: Mast.Repo,
+  queues: [checks: 5, runs: 2],
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"* * * * *", Mast.Workers.ConnectionCheck, args: %{all: true}},
+       {"0 0 * * 0", Mast.Workers.PatchScan, args: %{all: true}}
+     ]}
+  ]
+
 # Configure the endpoint
 config :mast, MastWeb.Endpoint,
   url: [host: "localhost"],
