@@ -66,11 +66,13 @@ defmodule Mast.Fleet.Server do
   @doc false
   def changeset(server, attrs) do
     server
-    |> cast(attrs, [:name, :host, :user, :port, :private_key_id])
+    |> cast(attrs, [:name, :host, :user, :port, :private_key_id, :release_command])
     |> validate_required([:name, :host])
     |> validate_length(:name, min: 1, max: 64)
     |> validate_length(:host, min: 1, max: 255)
+    |> validate_length(:release_command, max: 512)
     |> validate_number(:port, greater_than: 0, less_than_or_equal_to: 65_535)
+    |> validate_release_command()
     |> unique_constraint(:name)
     |> foreign_key_constraint(:private_key_id)
   end
