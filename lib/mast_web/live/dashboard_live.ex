@@ -15,6 +15,7 @@ defmodule MastWeb.DashboardLive do
      |> assign(:page_title, "Fleet")
      |> assign(:filter, "")
      |> assign(:server_count, length(servers))
+     |> assign(:keys, [])
      |> stream(:servers, servers)}
   end
 
@@ -34,7 +35,10 @@ defmodule MastWeb.DashboardLive do
 
   defp apply_action(socket, :new, _params) do
     cs = Fleet.change_server(%Server{user: "ubuntu", port: 22})
-    assign(socket, :form, to_form(cs, as: :server))
+
+    socket
+    |> assign(:form, to_form(cs, as: :server))
+    |> assign(:keys, Mast.Keys.list_keys())
   end
 
   @impl true
@@ -123,7 +127,7 @@ defmodule MastWeb.DashboardLive do
         </p>
       </main>
 
-      <.new_server_modal :if={@live_action == :new} form={@form} />
+      <.new_server_modal :if={@live_action == :new} form={@form} keys={@keys} />
     </div>
     """
   end
@@ -375,6 +379,7 @@ defmodule MastWeb.DashboardLive do
   # --- New server modal ----------------------------------------------------
 
   attr :form, :any, required: true
+  attr :keys, :list, required: true
 
   defp new_server_modal(assigns) do
     ~H"""
@@ -388,7 +393,7 @@ defmodule MastWeb.DashboardLive do
           <div>
             <h2 class="text-lg font-semibold">Add a system</h2>
             <p class="text-sm text-base-content/60 mt-1">
-              Register a server to monitor. SSH access is handled later.
+              Register a server to monitor.
             </p>
           </div>
           <.link patch={~p"/"} class="btn btn-ghost btn-sm btn-circle" aria-label="Close">✕</.link>
@@ -408,6 +413,18 @@ defmodule MastWeb.DashboardLive do
             <.input field={@form[:port]} type="number" label="Port" placeholder="22" />
           </div>
 
+          <.input
+            field={@form[:private_key_id]}
+            type="select"
+            label="Private key"
+            prompt={
+              if @keys == [],
+                do: "No keys registered — add one in key management first",
+                else: "— none —"
+            }
+            options={Enum.map(@keys, &{key_label(&1), &1.id})}
+          />
+
           <div class="flex justify-end gap-2 pt-2">
             <.link patch={~p"/"} class="btn btn-ghost btn-sm">Cancel</.link>
             <button type="submit" class="btn btn-primary btn-sm">Add System</button>
@@ -416,6 +433,10 @@ defmodule MastWeb.DashboardLive do
       </div>
     </div>
     """
+  end
+
+  defp key_label(key) do
+    "#{key.name} (#{key.algorithm}, #{String.slice(key.fingerprint, 0, 19)}…)"
   end
 
   # Tiny inline SVG icons (header row).

@@ -32,6 +32,44 @@ defmodule MastWeb.DashboardLiveTest do
       assert render(view) =~ "Add a system"
     end
 
+    test "Add System modal includes a key dropdown listing registered keys", %{conn: conn} do
+      {:ok, _} =
+        Mast.Keys.create_key(%{
+          name: "elpajo prod",
+          body: File.read!("test/fixtures/test_ed25519")
+        })
+
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+      html = render(view)
+
+      assert html =~ "Private key"
+      assert html =~ "elpajo prod"
+    end
+
+    test "submits a new server with private_key_id", %{conn: conn} do
+      {:ok, key} =
+        Mast.Keys.create_key(%{
+          name: "elpajo prod",
+          body: File.read!("test/fixtures/test_ed25519")
+        })
+
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+
+      view
+      |> form("#new-server-form",
+        server: %{
+          name: "with-key",
+          host: "10.0.0.7",
+          private_key_id: Integer.to_string(key.id)
+        }
+      )
+      |> render_submit()
+
+      [server] = Mast.Fleet.list_servers()
+      assert server.name == "with-key"
+      assert server.private_key_id == key.id
+    end
+
     test "submitting the new-server form creates a server", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/servers/new")
 
