@@ -23,6 +23,8 @@ defmodule MastWeb.ServerLive do
      |> assign(:server, server)
      |> assign(:run_id, run_id)
      |> assign(:running?, false)
+     |> assign(:scanning?, false)
+     |> assign(:scan_error, nil)
      |> stream(:log, [])
      |> assign(:log_count, 0)}
   end
@@ -30,7 +32,22 @@ defmodule MastWeb.ServerLive do
   @impl true
   def handle_info({:server_updated, %{id: id} = server}, socket) do
     if id == socket.assigns.server.id do
-      {:noreply, assign(socket, :server, server)}
+      {:noreply,
+       socket
+       |> assign(:server, server)
+       |> assign(:scanning?, false)
+       |> assign(:scan_error, nil)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:scan_failed, id, reason}, socket) do
+    if id == socket.assigns.server.id do
+      {:noreply,
+       socket
+       |> assign(:scanning?, false)
+       |> assign(:scan_error, reason)}
     else
       {:noreply, socket}
     end
@@ -58,7 +75,10 @@ defmodule MastWeb.ServerLive do
     |> PatchScan.new()
     |> Oban.insert!()
 
-    {:noreply, put_flash(socket, :info, "Scanning for updates…")}
+    {:noreply,
+     socket
+     |> assign(:scanning?, true)
+     |> assign(:scan_error, nil)}
   end
 
   def handle_event("apply_all", _, socket) do
@@ -159,7 +179,15 @@ defmodule MastWeb.ServerLive do
 
           <div class="flex items-center gap-2">
             <button type="button" phx-click="check" class="btn btn-ghost btn-sm">Check</button>
-            <button type="button" phx-click="scan" class="btn btn-ghost btn-sm">Scan updates</button>
+            <button
+              type="button"
+              phx-click="scan"
+              class="btn btn-ghost btn-sm gap-2"
+              disabled={@scanning?}
+            >
+              <span :if={@scanning?} class="loading loading-spinner loading-xs" />
+              {if @scanning?, do: "Scanning…", else: "Scan updates"}
+            </button>
           </div>
         </header>
 
@@ -171,33 +199,36 @@ defmodule MastWeb.ServerLive do
 
         <section class="mt-4 rounded-2xl bg-base-100 border border-base-300 shadow-sm overflow-hidden">
           <header class="flex items-end justify-between gap-4 px-6 pt-6 pb-3 border-b border-base-300">
-            <div>
-              <h2 class="text-lg font-semibold">Available updates</h2>
-              <p class="text-sm text-base-content/60 mt-0.5">
-                <%= if @server.last_scan_at do %>
-                  Last scanned {format_relative(@server.last_scan_at)}.
-                  <%= cond do %>
-                    <% (@server.updates_available || 0) == 0 -> %>
-                      Nothing to install.
-                    <% true -> %>
-                      {@server.updates_available} package(s) available.
-                  <% end %>
-                <% else %>
-                  Not scanned yet. Click <span class="font-medium">Scan updates</span>.
-                <% end %>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-semibold">Available updates</h2>
+                <span :if={@scanning?} class="badge badge-warning badge-sm gap-1">
+                  <span class="loading loading-spinner loading-xs" /> scanning
+                </span>
+              </div>
+              <p class="text-sm mt-0.5 text-base-content/60">
+                <.scan_status_text
+                  server={@server}
+                  scanning?={@scanning?}
+                  scan_error={@scan_error}
+                />
               </p>
             </div>
             <button
               type="button"
               phx-click="apply_all"
               class="btn btn-primary btn-sm"
-              disabled={@running? or (@server.updates_available || 0) == 0}
+              disabled={@running? or @scanning? or (@server.updates_available || 0) == 0}
             >
               Apply All Updates
             </button>
           </header>
 
-          <.updates_table updates={updates_list(@server)} running?={@running?} />
+          <.updates_table
+            server={@server}
+            scanning?={@scanning?}
+            running?={@running?}
+          />
         </section>
 
         <section class="mt-4 rounded-2xl bg-base-100 border border-base-300 shadow-sm overflow-hidden">
@@ -277,20 +308,33 @@ defmodule MastWeb.ServerLive do
     """
   end
 
-  attr :updates, :list, required: true
+  attr :server, :map, required: true
+  attr :scanning?, :boolean, required: true
   attr :running?, :boolean, required: true
 
-  defp updates_table(%{updates: []} = assigns) do
-    ~H"""
-    <div class="px-6 py-8 text-center text-sm text-base-content/60">
-      No updates pending.
-    </div>
-    """
-  end
-
   defp updates_table(assigns) do
+    updates = updates_list(assigns.server)
+    state = empty_state(assigns.server, assigns.scanning?, updates)
+
+    assigns = assign(assigns, updates: updates, state: state)
+
     ~H"""
-    <div class="px-6 py-4 overflow-x-auto">
+    <div :if={@state == :scanning} class="px-6 py-12 text-center text-sm text-base-content/60">
+      <span class="loading loading-spinner loading-md" />
+      <p class="mt-3">Running <code>apt list --upgradable</code> — this can take a few seconds…</p>
+    </div>
+
+    <div :if={@state == :never_scanned} class="px-6 py-10 text-center text-sm text-base-content/60">
+      <p>Not scanned yet.</p>
+      <p class="mt-1">Click <span class="font-medium">Scan updates</span> to check.</p>
+    </div>
+
+    <div :if={@state == :clean} class="px-6 py-10 text-center text-sm">
+      <p class="font-medium text-emerald-500">All up to date</p>
+      <p class="text-base-content/60 mt-1">No package updates available.</p>
+    </div>
+
+    <div :if={@state == :has_updates} class="px-6 py-4 overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr class="text-xs uppercase tracking-wider text-base-content/50 border-b border-base-300">
@@ -311,7 +355,7 @@ defmodule MastWeb.ServerLive do
                 phx-click="apply_package"
                 phx-value-name={u["package"]}
                 class="btn btn-ghost btn-xs"
-                disabled={@running? or not Apt.safe_package_name?(u["package"])}
+                disabled={@running? or @scanning? or not Apt.safe_package_name?(u["package"])}
               >
                 Apply
               </button>
@@ -323,8 +367,38 @@ defmodule MastWeb.ServerLive do
     """
   end
 
+  defp empty_state(_server, true, _updates), do: :scanning
+  defp empty_state(%{last_scan_at: nil}, _, _), do: :never_scanned
+  defp empty_state(_, _, []), do: :clean
+  defp empty_state(_, _, _), do: :has_updates
+
   defp updates_list(%{last_scan: %{"updates" => updates}}) when is_list(updates), do: updates
   defp updates_list(_), do: []
+
+  attr :server, :map, required: true
+  attr :scanning?, :boolean, required: true
+  attr :scan_error, :any, required: true
+
+  defp scan_status_text(assigns) do
+    ~H"""
+    <%= cond do %>
+      <% @scan_error -> %>
+        <span class="text-rose-500">Scan failed: {@scan_error}</span>
+      <% @scanning? -> %>
+        Scanning…
+      <% @server.last_scan_at -> %>
+        Last scanned {format_relative(@server.last_scan_at)}.
+        <%= cond do %>
+          <% (@server.updates_available || 0) == 0 -> %>
+            Nothing to install.
+          <% true -> %>
+            {@server.updates_available} package(s) available.
+        <% end %>
+      <% true -> %>
+        Not scanned yet. Click <span class="font-medium">Scan updates</span>.
+    <% end %>
+    """
+  end
 
   defp line_class(:stdout), do: "text-base-content"
   defp line_class(:stderr), do: "text-amber-500"

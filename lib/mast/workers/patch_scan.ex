@@ -42,6 +42,7 @@ defmodule Mast.Workers.PatchScan do
         :ok
 
       :skip ->
+        broadcast({:scan_failed, server.id, "no supported package manager on this server"})
         :ok
 
       {:error, reason} ->
@@ -49,9 +50,17 @@ defmodule Mast.Workers.PatchScan do
 
         Logger.warning("PatchScan failed for server #{server.name}: #{inspect(reason)}")
 
+        broadcast({:scan_failed, server.id, format_reason(reason)})
         :ok
     end
   end
+
+  defp format_reason({:non_zero_exit, code, output}) do
+    trimmed = output |> to_string() |> String.trim() |> String.slice(0, 200)
+    "exited #{code}: #{trimmed}"
+  end
+
+  defp format_reason(reason), do: reason |> inspect() |> String.slice(0, 200)
 
   defp scan(%{package_manager: "apt"} = server) do
     update_cmd = sudo(server, "apt-get update -qq")
