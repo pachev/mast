@@ -6,6 +6,8 @@ defmodule MastWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Mast.PubSub, "servers")
+
     servers = Fleet.list_servers()
 
     {:ok,
@@ -14,6 +16,11 @@ defmodule MastWeb.DashboardLive do
      |> assign(:filter, "")
      |> assign(:server_count, length(servers))
      |> stream(:servers, servers)}
+  end
+
+  @impl true
+  def handle_info({:server_updated, server}, socket) do
+    {:noreply, stream_insert(socket, :servers, server)}
   end
 
   @impl true

@@ -46,7 +46,15 @@ defmodule Mast.Fleet.Server do
   @doc false
   def metrics_changeset(server, attrs) do
     server
-    |> cast(attrs, [:cpu, :memory, :disk, :net_mb_s, :agent_version])
+    |> cast(attrs, [
+      :cpu,
+      :memory,
+      :disk,
+      :net_mb_s,
+      :agent_version,
+      :os_id,
+      :package_manager
+    ])
     |> put_change(:status, "up")
     |> put_change(:unreachable_count, 0)
     |> put_change(:last_seen_at, DateTime.utc_now())
