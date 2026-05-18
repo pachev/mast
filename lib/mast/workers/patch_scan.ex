@@ -17,6 +17,7 @@ defmodule Mast.Workers.PatchScan do
   alias Mast.Audit
   alias Mast.Fleet
   alias Mast.Patches.Apt
+  alias Mast.Patches.Dnf
   alias Mast.SSH
 
   @impl Oban.Worker
@@ -86,6 +87,18 @@ defmodule Mast.Workers.PatchScan do
     with {:ok, _} <- SSH.run(server, update_cmd),
          {:ok, out} <- SSH.run(server, list_cmd) do
       {:ok, Apt.parse(out)}
+    end
+  end
+
+  defp scan(%{package_manager: "dnf"} = server) do
+    # `dnf check-update` exits 100 when updates are available and 0 when
+    # none — both are success here. Any other non-zero exit is a real error.
+    cmd = "LANG=C " <> sudo(server, "dnf -q check-update")
+
+    case SSH.run(server, cmd) do
+      {:ok, out} -> {:ok, Dnf.parse(out)}
+      {:error, {:non_zero_exit, 100, out}} -> {:ok, Dnf.parse(out)}
+      {:error, _} = err -> err
     end
   end
 

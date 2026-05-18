@@ -34,8 +34,8 @@ If you don't fit that, the tools above are better.
 | Beszel-style dashboard at `/` with CPU / Memory / Disk per box | v0.1 |
 | Per-row **Check** button to run an SSH probe on demand | v0.2 |
 | Background heartbeat every 30 s (dev) / 60 s (prod) | v0.2 |
-| OS detection + package-manager mapping (apt today) | v0.2 |
-| Weekly OS patch scan via Oban cron (`apt list --upgradable`) | v0.2 |
+| OS detection + package-manager mapping | v0.2 |
+| Weekly OS patch scan via Oban cron (apt + dnf) | v0.2 / v0.5 |
 | Per-server detail page at `/servers/:id` | v0.3 |
 | **Apply All Updates** + per-package Apply with live shell streaming | v0.3 |
 | Auto-rescan after a successful apply | v0.3 |
@@ -43,6 +43,32 @@ If you don't fit that, the tools above are better.
 | Key dropdown in the Add System modal (selects from registered keys) | v0.4 |
 | App monitoring: list running Elixir releases per host, refresh on demand | v0.4 |
 | Fleet-wide `/apps` view and per-app detail page at `/apps/:id` | v0.4 |
+| Append-only audit log of every meaningful action (keys, servers, scans, applies) | v0.5 |
+| `/audit` page with search + event/subject filters | v0.5 |
+| Per-server Recent Activity panel on the detail page | v0.5 |
+| Inline "Paste new key" form in the Add Server modal | v0.5 |
+| Load average from `/proc/loadavg` (1m / 5m / 15m) | v0.5 |
+| Stat tiles show used/total for memory and disk, with progress bars | v0.5 |
+| New servers get an immediate connection check instead of waiting for the cron tick | v0.5 |
+
+### Supported distros
+
+Patch scanning is implemented for two package managers today:
+
+- **apt** — Ubuntu, Debian, Raspberry Pi OS, and apt derivatives (Pop!_OS,
+  Linux Mint, Zorin).
+- **dnf** — Amazon Linux 2023, Fedora, Rocky, RHEL, Oracle Linux,
+  AlmaLinux, CentOS.
+
+The fleet dashboard, SSH probe, metrics, and app monitoring work on any
+Linux box reachable over SSH; only the patch-scan and apply paths are
+package-manager specific. Pacman, apk, and zypper are mapped but not yet
+implemented.
+
+For AL2023 specifically, Mast tracks the per-package update stream
+(`dnf check-update`). Whole-distro release-version bumps
+(`dnf upgrade --releasever=...`) are a separate signal we don't surface
+yet, see [issue #13](https://github.com/pachev/mast/issues/13).
 
 Validated end-to-end against a real Ubuntu 24.04 box and an Amazon Linux
 2023 box: SSH probe → metrics refresh, patch scan finding real packages,
@@ -64,8 +90,12 @@ Then open <http://localhost:4000>.
 
 ### Adding your first SSH key
 
-Mast does **not** read `~/.ssh/config`. Add a key through the (forthcoming)
-key management UI or, until then, via IEx:
+Mast does **not** read `~/.ssh/config`. The simplest path: click **Add
+Server**, expand the **Add new key** disclosure under the key dropdown,
+paste a PEM, name it, save. The key is parsed, fingerprinted, and
+stored encrypted (AES-256-GCM via Cloak) before the server is created.
+
+You can also seed a key from IEx if you're scripting setup:
 
 ```elixir
 {:ok, _} = Mast.Keys.create_key(%{
@@ -74,8 +104,9 @@ key management UI or, until then, via IEx:
 })
 ```
 
-The PEM is parsed, fingerprinted, and stored encrypted (AES-256-GCM via
-Cloak). Then pick it from the dropdown when adding a server.
+Passphrase-protected PEMs are rejected at upload time — generate a
+separate unencrypted key for Mast and authorize it on the target box
+(the "deploy key" pattern). See ADR 0006 for the reasoning.
 
 ### Encryption key
 
@@ -92,8 +123,9 @@ has no real data).
 ### sudo
 
 The configured SSH user must be `root` or have passwordless `sudo` for
-`apt-get`. The workers prefix `sudo -n ` to apt commands; if sudo requires
-a password, scans and applies will fail silently.
+the host's package manager (`apt-get` on Debian/Ubuntu, `dnf` on AL2023
+and Fedora-family). The workers prefix `sudo -n ` to those commands; if
+sudo requires a password, scans and applies will fail silently.
 
 ## Making your Elixir app monitorable
 
@@ -171,6 +203,7 @@ The test suite uses `Mast.SSH.Stub` and does not touch the network.
 - **v0.5** — full key management UI (list, add via paste, delete)
 - **v0.5** — richer per-app detail via `:observer_backend.*` over the
   same `rpc` channel (sup tree, scheduler load, memory categories)
-- **Later** — dist-upgrade for kernel/held packages, dnf/pacman/zypper
-  parsers, app-level alerting on status transitions, plain HTTP/TCP
-  fallback for non-Elixir apps
+- **Later** — dist-upgrade for kernel/held packages, AL2023
+  release-version drift tracking ([#13](https://github.com/pachev/mast/issues/13)),
+  pacman/apk/zypper parsers, app-level alerting on status transitions,
+  plain HTTP/TCP fallback for non-Elixir apps

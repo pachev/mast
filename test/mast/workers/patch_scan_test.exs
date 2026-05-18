@@ -119,6 +119,74 @@ defmodule Mast.Workers.PatchScanTest do
     end
   end
 
+  @dnf_out """
+  openssl.x86_64    1:3.0.8-1.amzn2023.0.7    amazonlinux
+  curl.x86_64       8.5.0-1.amzn2023          amazonlinux
+  """
+
+  describe "perform/1 with server_id (dnf)" do
+    test "scans dnf server when dnf exits 100 (updates available)" do
+      {:ok, server} = Fleet.create_server(%{name: "al-1", host: "10.0.0.30"})
+      {:ok, server} = Fleet.update_server_meta(server, %{os_id: "amzn", package_manager: "dnf"})
+
+      # dnf check-update exits 100 when updates exist — must be treated as success.
+      Stub.expect(
+        server,
+        "LANG=C sudo -n dnf -q check-update",
+        {:error, {:non_zero_exit, 100, @dnf_out}}
+      )
+
+      assert :ok = perform_job(PatchScan, %{"server_id" => server.id})
+
+      s = Fleet.get_server!(server.id)
+      assert s.updates_available == 2
+      assert %{"total" => 2, "updates" => [%{"package" => "openssl"} | _]} = s.last_scan
+    end
+
+    test "treats dnf exit 0 as no updates" do
+      {:ok, server} = Fleet.create_server(%{name: "al-2", host: "10.0.0.31"})
+      {:ok, server} = Fleet.update_server_meta(server, %{os_id: "amzn", package_manager: "dnf"})
+
+      Stub.expect(server, "LANG=C sudo -n dnf -q check-update", {:ok, ""})
+
+      assert :ok = perform_job(PatchScan, %{"server_id" => server.id})
+
+      s = Fleet.get_server!(server.id)
+      assert s.updates_available == 0
+      assert %{"total" => 0, "updates" => []} = s.last_scan
+    end
+
+    test "skips sudo prefix when ssh user is root" do
+      {:ok, server} = Fleet.create_server(%{name: "al-root", host: "10.0.0.32", user: "root"})
+      {:ok, server} = Fleet.update_server_meta(server, %{os_id: "amzn", package_manager: "dnf"})
+
+      Stub.expect(server, "LANG=C dnf -q check-update", {:ok, ""})
+
+      assert :ok = perform_job(PatchScan, %{"server_id" => server.id})
+      assert Stub.last_command(server) == "LANG=C dnf -q check-update"
+    end
+
+    test "real dnf errors (non-100 exits) propagate as failures" do
+      {:ok, server} = Fleet.create_server(%{name: "al-err", host: "10.0.0.33"})
+      {:ok, server} = Fleet.update_server_meta(server, %{os_id: "amzn", package_manager: "dnf"})
+
+      Stub.expect(
+        server,
+        "LANG=C sudo -n dnf -q check-update",
+        {:error, {:non_zero_exit, 1, "Error: GPG check FAILED"}}
+      )
+
+      assert :ok = perform_job(PatchScan, %{"server_id" => server.id})
+
+      event =
+        Mast.Audit.Event
+        |> Mast.Repo.all()
+        |> Enum.find(&(&1.event_type == "scan.run" and &1.subject_id == server.id))
+
+      assert event.metadata["outcome"] == "error"
+    end
+  end
+
   describe "perform/1 with all: true" do
     test "fan-outs one job per server" do
       {:ok, s1} = Fleet.create_server(%{name: "a", host: "10.0.0.1"})
