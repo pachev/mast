@@ -47,6 +47,25 @@ defmodule Mast.Hosts.Metrics do
   end
 
   @doc """
+  Parses `free -m` output and returns total/used in MB.
+  """
+  @spec parse_memory_bytes(String.t()) :: %{total_mb: integer(), used_mb: integer()} | nil
+  def parse_memory_bytes(output) when is_binary(output) do
+    case Regex.run(~r/Mem:\s+(\d+)\s+(\d+)/, output) do
+      [_, total_s, used_s] ->
+        with {total, _} when total > 0 <- Integer.parse(total_s),
+             {used, _} <- Integer.parse(used_s) do
+          %{total_mb: total, used_mb: used}
+        else
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  @doc """
   Parses `df -h /` output. Returns the Use% column for the root filesystem.
   """
   @spec parse_disk(String.t()) :: float() | nil
@@ -63,6 +82,38 @@ defmodule Mast.Hosts.Metrics do
           nil
       end
     end)
+  end
+
+  @doc """
+  Parses `df -h /` output. Returns total + used in GB for the root
+  filesystem. Suffixes K/M/G/T are normalised to GB.
+  """
+  @spec parse_disk_bytes(String.t()) :: %{total_gb: float(), used_gb: float()} | nil
+  def parse_disk_bytes(output) when is_binary(output) do
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.find_value(fn line ->
+      case Regex.run(~r/\S+\s+([\d.]+[KMGTP]?)\s+([\d.]+[KMGTP]?)\s+\S+\s+\d+%\s+/, line) do
+        [_, size_s, used_s] ->
+          %{total_gb: size_to_gb(size_s), used_gb: size_to_gb(used_s)}
+
+        _ ->
+          nil
+      end
+    end)
+  end
+
+  defp size_to_gb(s) do
+    {n, suffix} = Float.parse(s)
+
+    case suffix do
+      "K" -> Float.round(n / 1_048_576, 4)
+      "M" -> Float.round(n / 1024, 4)
+      "G" -> Float.round(n, 4)
+      "T" -> Float.round(n * 1024, 4)
+      "P" -> Float.round(n * 1_048_576, 4)
+      _ -> Float.round(n, 4)
+    end
   end
 
   @doc """

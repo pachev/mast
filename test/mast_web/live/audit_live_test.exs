@@ -28,6 +28,36 @@ defmodule MastWeb.AuditLiveTest do
       refute html =~ "12 packages available"
     end
 
+    test "filters by event_type dropdown", %{conn: conn} do
+      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: 1})
+      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: 1})
+
+      {:ok, view, _} = live(conn, ~p"/audit")
+
+      html =
+        view
+        |> form("#audit-filters", filters: %{event_type: "key.created", subject_type: ""})
+        |> render_change()
+
+      assert html =~ "registered SSH key"
+      refute html =~ "scanned"
+    end
+
+    test "filters by subject_type dropdown", %{conn: conn} do
+      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: 1})
+      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: 1})
+
+      {:ok, view, _} = live(conn, ~p"/audit")
+
+      html =
+        view
+        |> form("#audit-filters", filters: %{event_type: "", subject_type: "Server"})
+        |> render_change()
+
+      assert html =~ "scanned"
+      refute html =~ "registered SSH key"
+    end
+
     test "renders a scan.run event with the real package count", %{conn: conn} do
       {:ok, server} = Fleet.create_server(%{name: "hermes", host: "10.0.0.42"})
 

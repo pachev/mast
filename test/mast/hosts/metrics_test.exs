@@ -37,6 +37,22 @@ defmodule Mast.Hosts.MetricsTest do
     end
   end
 
+  describe "parse_memory_bytes/1 (free -m raw)" do
+    test "returns total and used in MB" do
+      out = """
+                     total        used        free      shared  buff/cache   available
+      Mem:            7948        2240        3402         156        2305        5707
+      Swap:           2048           0        2048
+      """
+
+      assert Metrics.parse_memory_bytes(out) == %{total_mb: 7948, used_mb: 2240}
+    end
+
+    test "returns nil for malformed output" do
+      assert Metrics.parse_memory_bytes("nope") == nil
+    end
+  end
+
   describe "parse_disk/1 (df -h /)" do
     test "extracts the use% column" do
       out = """
@@ -54,6 +70,35 @@ defmodule Mast.Hosts.MetricsTest do
 
     test "returns nil when no Use% column found" do
       assert Metrics.parse_disk("nope") == nil
+    end
+  end
+
+  describe "parse_disk_bytes/1 (df -h / raw)" do
+    test "extracts total + used in GB from human-readable output" do
+      out = """
+      Filesystem      Size  Used Avail Use% Mounted on
+      /dev/sda1        50G   12G   36G  26% /
+      """
+
+      assert Metrics.parse_disk_bytes(out) == %{total_gb: 50.0, used_gb: 12.0}
+    end
+
+    test "handles fractional sizes" do
+      out = "Filesystem Size Used Avail Use% Mounted on\n/dev/root 1.5T 240G 1.2T 17% /\n"
+      # 1.5T = 1536 GB, 240G stays.
+      assert Metrics.parse_disk_bytes(out) == %{total_gb: 1536.0, used_gb: 240.0}
+    end
+
+    test "handles M-suffixed used on tiny filesystems" do
+      out = "Filesystem Size Used Avail Use% Mounted on\n/dev/loop0 100M 50M 50M 50% /\n"
+      result = Metrics.parse_disk_bytes(out)
+      # 100 MiB = 100/1024 GiB ≈ 0.0977
+      assert_in_delta result.total_gb, 0.0977, 0.001
+      assert_in_delta result.used_gb, 0.0488, 0.001
+    end
+
+    test "returns nil when no size column found" do
+      assert Metrics.parse_disk_bytes("nope") == nil
     end
   end
 

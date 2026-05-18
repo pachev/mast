@@ -60,6 +60,10 @@ defmodule Mast.Workers.ConnectionCheckTest do
       assert reloaded.load_1 == 0.42
       assert reloaded.load_5 == 0.55
       assert reloaded.load_15 == 0.61
+      assert reloaded.memory_total_mb == 8000
+      assert reloaded.memory_used_mb == 2000
+      assert reloaded.disk_total_gb == 50.0
+      assert reloaded.disk_used_gb == 12.0
       assert reloaded.last_seen_at
       assert reloaded.unreachable_count == 0
     end

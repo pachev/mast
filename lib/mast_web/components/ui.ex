@@ -327,6 +327,8 @@ defmodule MastWeb.Components.UI do
   attr :value, :any, required: true
   attr :sub, :string, default: nil
   attr :tone, :string, default: "default", values: ~w(default online warning offline accent)
+  attr :progress, :integer, default: nil, doc: "0-100; when set, renders a usage bar"
+  attr :bar_tone, :string, default: "accent", values: ~w(accent online warning offline)
   attr :class, :any, default: nil
 
   def ui_stat(assigns) do
@@ -342,12 +344,26 @@ defmodule MastWeb.Components.UI do
       <div class={["mt-1 text-3xl font-semibold tabular-nums leading-none", stat_tone(@tone)]}>
         {@value}
       </div>
+      <div
+        :if={is_integer(@progress)}
+        class="mt-3 h-1.5 w-full rounded-full bg-[var(--mast-bg-tertiary)] overflow-hidden"
+      >
+        <div
+          class={["h-full rounded-full", bar_color(@bar_tone)]}
+          style={"width: #{max(0, min(100, @progress))}%"}
+        />
+      </div>
       <div :if={@sub} class="mt-2 text-xs text-[var(--mast-font-tertiary)]">
         {@sub}
       </div>
     </div>
     """
   end
+
+  defp bar_color("online"), do: "bg-[var(--mast-status-online)]"
+  defp bar_color("warning"), do: "bg-[var(--mast-status-warning)]"
+  defp bar_color("offline"), do: "bg-[var(--mast-status-offline)]"
+  defp bar_color(_), do: "bg-[var(--mast-accent)]"
 
   defp stat_tone("online"), do: "text-[var(--mast-status-online)]"
   defp stat_tone("warning"), do: "text-[var(--mast-status-warning)]"

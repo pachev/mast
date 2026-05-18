@@ -58,6 +58,8 @@ defmodule Mast.Workers.ConnectionCheck do
          {:ok, loadavg} <- SSH.run(server, "cat /proc/loadavg") do
       os_info = OS.parse(os)
       load = Metrics.parse_load_avg(loadavg) || %{}
+      mem_bytes = Metrics.parse_memory_bytes(free) || %{}
+      disk_bytes = Metrics.parse_disk_bytes(df) || %{}
 
       {:ok,
        %{
@@ -68,7 +70,11 @@ defmodule Mast.Workers.ConnectionCheck do
          disk: Metrics.parse_disk(df),
          load_1: Map.get(load, :load_1),
          load_5: Map.get(load, :load_5),
-         load_15: Map.get(load, :load_15)
+         load_15: Map.get(load, :load_15),
+         memory_total_mb: Map.get(mem_bytes, :total_mb),
+         memory_used_mb: Map.get(mem_bytes, :used_mb),
+         disk_total_gb: Map.get(disk_bytes, :total_gb),
+         disk_used_gb: Map.get(disk_bytes, :used_gb)
        }}
     end
   end

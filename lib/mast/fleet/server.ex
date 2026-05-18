@@ -30,6 +30,10 @@ defmodule Mast.Fleet.Server do
     field :load_1, :float
     field :load_5, :float
     field :load_15, :float
+    field :memory_total_mb, :integer
+    field :memory_used_mb, :integer
+    field :disk_total_gb, :float
+    field :disk_used_gb, :float
     field :agent_version, :string
 
     field :updates_available, :integer
@@ -109,6 +113,10 @@ defmodule Mast.Fleet.Server do
       :load_1,
       :load_5,
       :load_15,
+      :memory_total_mb,
+      :memory_used_mb,
+      :disk_total_gb,
+      :disk_used_gb,
       :agent_version,
       :os_id,
       :package_manager

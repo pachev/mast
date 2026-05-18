@@ -440,13 +440,27 @@ defmodule MastWeb.ServerLive do
   defp overview_tab(assigns) do
     ~H"""
     <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-      <.ui_stat label="CPU Usage" value={format_pct(@server.cpu)} sub={cpu_sub(@server.cpu)} />
+      <.ui_stat
+        label="CPU Usage"
+        value={format_pct(@server.cpu)}
+        sub={cpu_sub(@server.cpu)}
+        progress={progress_int(@server.cpu)}
+        bar_tone={progress_tone(@server.cpu)}
+      />
       <.ui_stat
         label="Memory"
-        value={format_pct(@server.memory)}
-        sub="of available"
+        value={memory_value(@server)}
+        sub={memory_sub(@server)}
+        progress={progress_int(@server.memory)}
+        bar_tone={progress_tone(@server.memory)}
       />
-      <.ui_stat label="Disk" value={format_pct(@server.disk)} sub="of total" />
+      <.ui_stat
+        label="Disk"
+        value={disk_value(@server)}
+        sub={disk_sub(@server)}
+        progress={progress_int(@server.disk)}
+        bar_tone={progress_tone(@server.disk)}
+      />
       <.ui_stat
         label="Load Avg"
         value={load_avg_label(@server)}
@@ -1005,6 +1019,41 @@ defmodule MastWeb.ServerLive do
 
   defp fmt_load(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 2)
   defp fmt_load(n), do: to_string(n)
+
+  defp progress_int(n) when is_number(n), do: round(n)
+  defp progress_int(_), do: nil
+
+  defp progress_tone(n) when is_number(n) and n >= 90, do: "offline"
+  defp progress_tone(n) when is_number(n) and n >= 75, do: "warning"
+  defp progress_tone(_), do: "accent"
+
+  defp memory_value(%{memory_used_mb: used, memory_total_mb: total})
+       when is_integer(used) and is_integer(total) and total > 0 do
+    "#{fmt_gb_from_mb(used)} / #{fmt_gb_from_mb(total)} GB"
+  end
+
+  defp memory_value(%{memory: pct}), do: format_pct(pct)
+
+  defp memory_sub(%{memory: pct}) when is_number(pct), do: pct_sub(pct)
+  defp memory_sub(_), do: "no data"
+
+  defp disk_value(%{disk_used_gb: used, disk_total_gb: total})
+       when is_number(used) and is_number(total) and total > 0 do
+    "#{fmt_gb(used)} / #{fmt_gb(total)} GB"
+  end
+
+  defp disk_value(%{disk: pct}), do: format_pct(pct)
+
+  defp disk_sub(%{disk: pct}) when is_number(pct), do: pct_sub(pct)
+  defp disk_sub(_), do: "no data"
+
+  defp pct_sub(pct), do: "#{:erlang.float_to_binary(pct * 1.0, decimals: 1)}% used"
+
+  defp fmt_gb_from_mb(mb) when is_integer(mb), do: fmt_gb(mb / 1024)
+  defp fmt_gb_from_mb(_), do: "—"
+
+  defp fmt_gb(n) when is_number(n), do: :erlang.float_to_binary(n * 1.0, decimals: 1)
+  defp fmt_gb(_), do: "—"
 
   defp overview_apps_meta(_, %{release_command: rc}) when rc in [nil, ""], do: "not configured"
   defp overview_apps_meta([], _), do: "no apps yet"
