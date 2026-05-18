@@ -1,9 +1,35 @@
-# ADR 0004: Elixir-native app monitoring (eventually)
+# ADR 0004: Elixir-native app monitoring
 
-Status: Proposed — deferred to v0.4
+Status: Accepted (revised)
 Date: 2026-05-18
 
-## Context
+## Revision (2026-05-18, v0.4 implementation)
+
+We initially planned to use distributed Erlang (`Node.connect/1` + `:rpc`)
+directly against monitored hosts. Two practical issues pushed us to a simpler
+transport:
+
+1. Disterl needs EPMD reachable plus a fixed `inet_dist_listen_min/max`
+   range on the target. That's two open ports per host and a release
+   configuration requirement.
+2. Cookies need to be managed per host. Encrypting them at rest works,
+   but the operational surface is wider than the value.
+
+**Revised decision:** invoke `bin/<release> rpc <expression>` over the
+existing SSH executor. Every mix release already supports `rpc`. The
+expression runs inside the release's BEAM with the right cookie and
+distribution settings; mast doesn't have to know either. One SSH command
+per probe, no new ports, no new secrets.
+
+The operator records a single `release_command` field on the server row
+(e.g. `/opt/hermes/bin/hermes`) in the Settings tab. `Mast.Workers.AppProbe`
+runs every 30s and stores the snapshot in the `applications` table.
+
+For richer per-app data (sup tree, scheduler load, memory categories) we
+will reuse the same `rpc` transport with `:observer_backend.*` calls,
+which is the same data Observer's GUI displays.
+
+## Original context
 
 Coolify ships a Go agent ("Sentinel") on every host that pushes CPU/RAM/Docker
 metrics. We don't want to run a separate binary on each box if we don't have to.

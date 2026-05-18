@@ -41,6 +41,8 @@ If you don't fit that, the tools above are better.
 | Auto-rescan after a successful apply | v0.3 |
 | SSH private keys stored encrypted at rest, used per-server | v0.4 |
 | Key dropdown in the Add System modal (selects from registered keys) | v0.4 |
+| App monitoring: list running Elixir releases per host, refresh on demand | v0.4 |
+| Fleet-wide `/apps` view and per-app detail page at `/apps/:id` | v0.4 |
 
 Validated end-to-end against a real Ubuntu 24.04 box and an Amazon Linux
 2023 box: SSH probe → metrics refresh, patch scan finding real packages,
@@ -93,6 +95,60 @@ The configured SSH user must be `root` or have passwordless `sudo` for
 `apt-get`. The workers prefix `sudo -n ` to apt commands; if sudo requires
 a password, scans and applies will fail silently.
 
+## Making your Elixir app monitorable
+
+Mast monitors Elixir applications by invoking
+`bin/<release> rpc <expression>` over the existing SSH connection. The
+expression runs inside your release's BEAM, reads
+`:application.which_applications/0`, and returns a JSON payload. One SSH
+roundtrip per probe, no extra ports, no cookies for mast to manage. See
+[ADR 0004](docs/adr/0004-elixir-native-monitoring.md) for the rationale.
+
+For this to work, your mix release needs two things:
+
+### 1. Short-name distribution
+
+Mix release defaults to long-name distribution (`-name <release>@<host>`),
+which expects `hostname -f` to return a fully qualified domain name. On
+most cloud VMs (EC2, GCE, fly.io machines), `hostname -f` returns a short
+name like `ip-172-31-15-23` and the BEAM refuses to form the node. That
+breaks `bin/<release> rpc` and any tool that wants to attach.
+
+Switch to short-name distribution by creating `rel/env.sh.eex` in your
+project:
+
+```sh
+#!/bin/sh
+export RELEASE_DISTRIBUTION=sname
+export RELEASE_NODE=<your_app_name>
+```
+
+`mix release` picks this up automatically on the next build and ships it
+inside the release. After deploying and restarting, `bin/<app> rpc` works
+in under a second:
+
+```sh
+$ time /opt/myapp/current/bin/myapp rpc 'IO.inspect(:pong)'
+:pong
+real    0m0.31s
+```
+
+If your host already has a proper FQDN (`hostname -f` returns something
+like `myhost.internal.example.com` that resolves back to the same IP),
+you can keep long names. Short names are simpler and the default mix
+release tooling assumes them.
+
+### 2. Wire the release path into mast
+
+On the server's detail page in mast, open the **Settings** tab and set
+**Release command** to the absolute path of your release's
+`bin/<app>` script, e.g. `/opt/hermes/current/bin/hermes`. Mast will
+probe it every 30 seconds and surface results on the **Apps** tab and
+the fleet-wide `/apps` page.
+
+That's the whole integration — no agent to install, no metrics endpoint
+to expose, no port to open beyond SSH.
+
 ## Testing
 
 ```sh
@@ -113,7 +169,8 @@ The test suite uses `Mast.SSH.Stub` and does not touch the network.
 ## Roadmap
 
 - **v0.5** — full key management UI (list, add via paste, delete)
-- **v0.6** — application monitoring via Erlang distribution + telemetry
-  for clustered Elixir releases
+- **v0.5** — richer per-app detail via `:observer_backend.*` over the
+  same `rpc` channel (sup tree, scheduler load, memory categories)
 - **Later** — dist-upgrade for kernel/held packages, dnf/pacman/zypper
-  parsers, audit log of all actions
+  parsers, app-level alerting on status transitions, plain HTTP/TCP
+  fallback for non-Elixir apps
