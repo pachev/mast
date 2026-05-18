@@ -32,10 +32,14 @@ defmodule Mast.Workers.PatchScan do
 
     case scan(server) do
       {:ok, scan} ->
+        # Atom-keyed map in memory → string-keyed for jsonb round-trip.
+        # Keeps broadcasts and refetches indistinguishable in the LV.
+        normalised = stringify(scan)
+
         {:ok, updated} =
           Fleet.record_scan(server, %{
             updates_available: scan.total,
-            last_scan: scan
+            last_scan: normalised
           })
 
         broadcast({:server_updated, updated})
@@ -76,6 +80,13 @@ defmodule Mast.Workers.PatchScan do
 
   defp sudo(%{user: "root"}, cmd), do: cmd
   defp sudo(_server, cmd), do: "sudo -n " <> cmd
+
+  defp stringify(map) when is_map(map) do
+    Map.new(map, fn {k, v} -> {to_string(k), stringify(v)} end)
+  end
+
+  defp stringify(list) when is_list(list), do: Enum.map(list, &stringify/1)
+  defp stringify(other), do: other
 
   defp broadcast(msg), do: Phoenix.PubSub.broadcast(Mast.PubSub, "servers", msg)
 end

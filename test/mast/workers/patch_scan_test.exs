@@ -33,6 +33,26 @@ defmodule Mast.Workers.PatchScanTest do
       s = Fleet.get_server!(server.id)
       assert s.updates_available == 2
       assert s.last_scan_at
+
+      # Scan payload must use string keys so it round-trips through jsonb
+      # and renders the same whether read from a broadcast or a refetch.
+      assert %{"total" => 2, "updates" => updates} = s.last_scan
+      assert [%{"package" => _, "new_version" => _} | _] = updates
+    end
+
+    test "broadcasts an updated server with string-keyed last_scan" do
+      {:ok, server} = Fleet.create_server(%{name: "atomic", host: "1.1.1.10"})
+      {:ok, server} = Fleet.update_server_meta(server, %{os_id: "ubuntu", package_manager: "apt"})
+
+      Stub.expect(server, "sudo -n apt-get update -qq", {:ok, ""})
+      Stub.expect(server, "LANG=C apt list --upgradable 2>/dev/null", {:ok, @apt_out})
+
+      Phoenix.PubSub.subscribe(Mast.PubSub, "servers")
+
+      assert :ok = perform_job(PatchScan, %{"server_id" => server.id})
+
+      assert_receive {:server_updated, broadcast}
+      assert %{"total" => 2, "updates" => [%{"package" => _} | _]} = broadcast.last_scan
     end
 
     test "no-op for servers without a known package manager" do
