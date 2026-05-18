@@ -10,6 +10,17 @@ config :mast, :check_interval_ms, 30_000
 # real key file in as id_rsa / id_ed25519 etc.
 config :mast, Mast.SSH.SSHKit, user_dir: Path.expand("../priv/ssh", __DIR__)
 
+# Dev-only Cloak key. NOT a secret — committing it just means the dev DB is
+# readable across machines. Production must override via MAST_VAULT_KEY in
+# config/runtime.exs.
+config :mast, Mast.Vault,
+  ciphers: [
+    default: {
+      Cloak.Ciphers.AES.GCM,
+      tag: "AES.GCM.V1", key: Base.decode64!("kPgTYjcl4fzpw6MQyILZmHe7AaZSPHl4Hbqu8jW9mUg=")
+    }
+  ]
+
 config :mast, Mast.Repo,
   username: "mast",
   password: "mast",

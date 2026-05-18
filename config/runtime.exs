@@ -52,6 +52,25 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
+  vault_key =
+    System.get_env("MAST_VAULT_KEY") ||
+      raise """
+      environment variable MAST_VAULT_KEY is missing.
+      Generate one with:  mix phx.gen.secret 32 | base64
+
+      This key encrypts SSH private keys at rest. Losing it makes every
+      stored key permanently unreadable. Source it from your secrets
+      manager (1Password CLI, AWS Secrets Manager, Doppler, etc).
+      """
+
+  config :mast, Mast.Vault,
+    ciphers: [
+      default: {
+        Cloak.Ciphers.AES.GCM,
+        tag: "AES.GCM.V1", key: Base.decode64!(vault_key)
+      }
+    ]
+
   host = System.get_env("PHX_HOST") || "example.com"
 
   config :mast, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")

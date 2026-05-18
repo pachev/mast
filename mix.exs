@@ -64,7 +64,9 @@ defmodule Mast.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:sshkit, "~> 0.3"},
-      {:oban, "~> 2.22"}
+      {:oban, "~> 2.22"},
+      {:cloak, "~> 1.1"},
+      {:cloak_ecto, "~> 1.3"}
     ]
   end
 

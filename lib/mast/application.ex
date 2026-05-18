@@ -11,6 +11,7 @@ defmodule Mast.Application do
       [
         MastWeb.Telemetry,
         Mast.Repo,
+        Mast.Vault,
         {DNSCluster, query: Application.get_env(:mast, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Mast.PubSub},
         {Oban, Application.fetch_env!(:mast, Oban)},

@@ -23,6 +23,15 @@ config :mast, Oban, testing: :manual
 # No heartbeat in tests.
 config :mast, :ticker_enabled, false
 
+# Test-env Cloak key. Fixed so encrypted fixtures round-trip; not a secret.
+config :mast, Mast.Vault,
+  ciphers: [
+    default: {
+      Cloak.Ciphers.AES.GCM,
+      tag: "AES.GCM.V1", key: Base.decode64!("xx0Y8t5sQYCSpHJWB+OSm9aXdSh5whlbk+lvSGTrXxg=")
+    }
+  ]
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :mast, MastWeb.Endpoint,
