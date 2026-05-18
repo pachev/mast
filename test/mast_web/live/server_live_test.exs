@@ -147,6 +147,64 @@ defmodule MastWeb.ServerLiveTest do
       assert html =~ "sudo: a password is required"
     end
 
+    test "updates tab paginates package list at 10/page", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "many", host: "10.0.0.41"})
+
+      updates =
+        for i <- 1..25 do
+          %{
+            "package" => "pkg#{String.pad_leading(Integer.to_string(i), 2, "0")}",
+            "current_version" => "1.0",
+            "new_version" => "1.1"
+          }
+        end
+
+      {:ok, _} =
+        Fleet.record_scan(server, %{
+          updates_available: 25,
+          last_scan: %{"total" => 25, "updates" => updates}
+        })
+
+      {:ok, view, html} = live(conn, ~p"/servers/#{server}?tab=updates")
+
+      # Page 1 shows pkg01..pkg10, not pkg11+.
+      assert html =~ "pkg01"
+      assert html =~ "pkg10"
+      refute html =~ "pkg11"
+      assert html =~ "Showing 1"
+      assert html =~ "of 25"
+
+      # Jump to page 2.
+      html = view |> render_click("goto-page", %{"page" => "2"})
+      assert html =~ "pkg11"
+      assert html =~ "pkg20"
+      refute html =~ "pkg01"
+    end
+
+    test "updates tab filters by package name via search input", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "filtered", host: "10.0.0.42"})
+
+      {:ok, _} =
+        Fleet.record_scan(server, %{
+          updates_available: 3,
+          last_scan: %{
+            "total" => 3,
+            "updates" => [
+              %{"package" => "openssl", "current_version" => "1", "new_version" => "2"},
+              %{"package" => "curl", "current_version" => "1", "new_version" => "2"},
+              %{"package" => "wget", "current_version" => "1", "new_version" => "2"}
+            ]
+          }
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/servers/#{server}?tab=updates")
+
+      html = view |> form("#updates-filter", %{q: "curl"}) |> render_change()
+      assert html =~ "curl"
+      refute html =~ "openssl"
+      refute html =~ "wget"
+    end
+
     test "settings tab shows a Danger Zone with a Remove button", %{conn: conn} do
       {:ok, server} = Fleet.create_server(%{name: "zulu", host: "10.0.0.99"})
 

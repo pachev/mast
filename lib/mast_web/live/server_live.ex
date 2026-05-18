@@ -37,6 +37,9 @@ defmodule MastWeb.ServerLive do
      |> assign(:monitoring_form, monitoring_form(server))
      |> assign(:confirm_delete?, false)
      |> assign(:confirm_name, "")
+     |> assign(:updates_page, 1)
+     |> assign(:updates_page_size, 10)
+     |> assign(:updates_filter, "")
      |> stream(:log, [])
      |> assign(:log_count, 0)
      |> assign(:activity, load_activity(server.id))}
@@ -69,6 +72,7 @@ defmodule MastWeb.ServerLive do
        |> assign(:server, server)
        |> assign(:scanning?, false)
        |> assign(:scan_error, nil)
+       |> assign(:updates_page, 1)
        |> assign(:activity, load_activity(server.id))}
     else
       {:noreply, socket}
@@ -229,6 +233,17 @@ defmodule MastWeb.ServerLive do
     end
   end
 
+  def handle_event("goto-page", %{"page" => page}, socket) do
+    {:noreply, assign(socket, :updates_page, max(1, String.to_integer(page)))}
+  end
+
+  def handle_event("filter-updates", %{"q" => q}, socket) do
+    {:noreply,
+     socket
+     |> assign(:updates_filter, q)
+     |> assign(:updates_page, 1)}
+  end
+
   def handle_event("clear_log", _, socket) do
     {:noreply,
      socket
@@ -385,6 +400,9 @@ defmodule MastWeb.ServerLive do
             scanning?={@scanning?}
             running?={@running?}
             scan_error={@scan_error}
+            updates_page={@updates_page}
+            updates_page_size={@updates_page_size}
+            updates_filter={@updates_filter}
           />
         <% "settings" -> %>
           <.settings_tab
@@ -864,12 +882,26 @@ defmodule MastWeb.ServerLive do
   attr :scanning?, :boolean, required: true
   attr :running?, :boolean, required: true
   attr :scan_error, :any, required: true
+  attr :updates_page, :integer, required: true
+  attr :updates_page_size, :integer, required: true
+  attr :updates_filter, :string, required: true
 
   defp updates_tab(assigns) do
-    updates = updates_list(assigns.server)
-    state = empty_state(assigns.server, assigns.scanning?, updates)
+    all = updates_list(assigns.server)
+    filtered = filter_updates(all, assigns.updates_filter)
+    state = empty_state(assigns.server, assigns.scanning?, all)
 
-    assigns = assign(assigns, updates: updates, state: state)
+    page = assigns.updates_page
+    page_size = assigns.updates_page_size
+    total = length(filtered)
+    page_rows = filtered |> Enum.drop((page - 1) * page_size) |> Enum.take(page_size)
+
+    assigns =
+      assigns
+      |> assign(:updates, all)
+      |> assign(:filtered_total, total)
+      |> assign(:page_rows, page_rows)
+      |> assign(:state, state)
 
     ~H"""
     <.ui_card padded={false}>
@@ -907,48 +939,69 @@ defmodule MastWeb.ServerLive do
             body="No package updates are available right now."
           />
         <% :has_updates -> %>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-[var(--mast-bg-secondary)]">
-                <tr class="text-xs font-medium uppercase tracking-wider text-[var(--mast-font-secondary)] border-b border-[var(--mast-border)]">
-                  <th class="text-left px-5 py-2.5">Package</th>
-                  <th class="text-left px-5 py-2.5">Current</th>
-                  <th class="text-left px-5 py-2.5">New</th>
-                  <th class="text-right px-5 py-2.5"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  :for={u <- @updates}
-                  class="border-b border-[var(--mast-border)] last:border-0 hover:bg-[var(--mast-bg-card-hover)]"
+          <form id="updates-filter" phx-change="filter-updates" class="contents">
+            <.ui_table id="updates-table" rows={@page_rows} size="sm">
+              <:action_bar>
+                <.ui_search
+                  name="q"
+                  value={@updates_filter}
+                  placeholder="Filter packages..."
+                  class="h-9 w-64"
+                />
+                <span class="flex-1" />
+                <span class="text-xs text-[var(--mast-font-secondary)]">
+                  {@filtered_total} package{if @filtered_total == 1, do: "", else: "s"}
+                </span>
+              </:action_bar>
+
+              <:col
+                :let={u}
+                label="Package"
+                class="font-mono font-medium text-[var(--mast-font-primary)]"
+              >
+                {u["package"]}
+              </:col>
+              <:col
+                :let={u}
+                label="Current"
+                class="font-mono tabular-nums text-[var(--mast-font-secondary)]"
+              >
+                {u["current_version"]}
+              </:col>
+              <:col :let={u} label="New" class="font-mono tabular-nums text-[var(--mast-accent)]">
+                {u["new_version"]}
+              </:col>
+              <:col :let={u} align="right">
+                <.ui_button
+                  variant="ghost"
+                  size="sm"
+                  phx-click="apply_package"
+                  phx-value-name={u["package"]}
+                  disabled={@running? or @scanning? or not Apt.safe_package_name?(u["package"])}
                 >
-                  <td class="px-5 py-3 font-mono font-medium text-[var(--mast-font-primary)]">
-                    {u["package"]}
-                  </td>
-                  <td class="px-5 py-3 font-mono tabular-nums text-[var(--mast-font-secondary)]">
-                    {u["current_version"]}
-                  </td>
-                  <td class="px-5 py-3 font-mono tabular-nums text-[var(--mast-accent)]">
-                    {u["new_version"]}
-                  </td>
-                  <td class="px-5 py-3 text-right">
-                    <.ui_button
-                      variant="ghost"
-                      size="sm"
-                      phx-click="apply_package"
-                      phx-value-name={u["package"]}
-                      disabled={@running? or @scanning? or not Apt.safe_package_name?(u["package"])}
-                    >
-                      Apply
-                    </.ui_button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  Apply
+                </.ui_button>
+              </:col>
+
+              <:pagination
+                page={@updates_page}
+                page_size={@updates_page_size}
+                total={@filtered_total}
+                event="goto-page"
+              />
+            </.ui_table>
+          </form>
       <% end %>
     </.ui_card>
     """
+  end
+
+  defp filter_updates(updates, ""), do: updates
+  defp filter_updates(updates, nil), do: updates
+
+  defp filter_updates(updates, q) do
+    q = String.downcase(q)
+    Enum.filter(updates, fn u -> String.contains?(String.downcase(u["package"] || ""), q) end)
   end
 
   defp empty_state(_server, true, _updates), do: :scanning

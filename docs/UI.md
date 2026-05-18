@@ -319,6 +319,50 @@ Single Elixir release card.
 Statuses map to badges: `running` (online), `stopped` (offline), `pending`
 (warning).
 
+### `ui_table/1`
+
+Paginated daisyUI table. Wrap the search input in a parent form with
+`phx-change` to drive live filtering.
+
+```heex
+<form id="updates-filter" phx-change="filter-updates">
+  <.ui_table id="updates" rows={@page_rows} size="sm">
+    <:action_bar>
+      <.ui_search name="q" value={@filter} placeholder="Filter packages..." />
+      <span class="flex-1" />
+      <span class="text-xs">{@total} packages</span>
+    </:action_bar>
+
+    <:col :let={row} label="Package">{row["package"]}</:col>
+    <:col :let={row} label="Current">{row["current_version"]}</:col>
+    <:col :let={row} label="New">{row["new_version"]}</:col>
+    <:col :let={row} align="right">
+      <.ui_button size="sm" variant="ghost" phx-click="apply" phx-value-name={row["package"]}>
+        Apply
+      </.ui_button>
+    </:col>
+
+    <:pagination
+      page={@page}
+      page_size={@page_size}
+      total={@total}
+      event="goto-page"
+    />
+  </.ui_table>
+</form>
+```
+
+Attrs:
+
+- `size`: `sm`, `md` (default), `lg`. Maps to daisyUI `table-sm|md|lg`.
+- `zebra`: striped rows. Defaults to true (`table-zebra`).
+- `pin_rows`: sticky header (`table-pin-rows`). Off by default.
+- `empty`: copy shown when `rows` is empty.
+
+The `:pagination` slot wires `phx-click={event}` with `phx-value-page=N` on
+each button. The parent LiveView handles `goto-page` (or whatever you name
+it) to update its page assign.
+
 ### `ui_log_entry/1`
 
 One line in a streaming log panel. Designed to live inside a scroll
