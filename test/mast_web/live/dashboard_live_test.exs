@@ -71,6 +71,75 @@ defmodule MastWeb.DashboardLiveTest do
       assert server.private_key_id == key.id
     end
 
+    test "inline 'Add new key' expands a form inside the modal", %{conn: conn} do
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+
+      refute has_element?(view, "#new-key-form")
+
+      view |> element("[phx-click=toggle_new_key]") |> render_click()
+
+      assert has_element?(view, "#new-key-form")
+      assert has_element?(view, "#new-key-form textarea[name='key[body]']")
+      assert has_element?(view, "#new-key-form input[name='key[name]']")
+    end
+
+    test "saving an inline key creates it and selects it in the server form", %{conn: conn} do
+      pem = File.read!("test/fixtures/test_ed25519")
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+
+      view |> element("[phx-click=toggle_new_key]") |> render_click()
+
+      html =
+        view
+        |> form("#new-key-form", key: %{name: "inline key", body: pem})
+        |> render_submit()
+
+      # Form collapses on success, dropdown now lists the key, and it's selected.
+      refute has_element?(view, "#new-key-form")
+      assert html =~ "inline key"
+
+      assert [%{name: "inline key"}] = Mast.Keys.list_keys()
+      [key] = Mast.Keys.list_keys()
+
+      assert has_element?(
+               view,
+               "select[name='server[private_key_id]'] option[selected][value='#{key.id}']"
+             )
+    end
+
+    test "inline key form shows error for passphrase'd PEM without closing modal", %{conn: conn} do
+      pem = File.read!("test/fixtures/test_with_passphrase")
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+
+      view |> element("[phx-click=toggle_new_key]") |> render_click()
+
+      html =
+        view
+        |> form("#new-key-form", key: %{name: "bad", body: pem})
+        |> render_submit()
+
+      assert html =~ "encrypted private keys are not supported"
+      assert has_element?(view, "#new-server-form")
+      assert has_element?(view, "#new-key-form")
+      assert Mast.Keys.list_keys() == []
+    end
+
+    test "inline key form shows duplicate-fingerprint error", %{conn: conn} do
+      pem = File.read!("test/fixtures/test_ed25519")
+      {:ok, _} = Mast.Keys.create_key(%{name: "already here", body: pem})
+
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+      view |> element("[phx-click=toggle_new_key]") |> render_click()
+
+      html =
+        view
+        |> form("#new-key-form", key: %{name: "dup", body: pem})
+        |> render_submit()
+
+      assert html =~ "this key is already registered"
+      assert has_element?(view, "#new-key-form")
+    end
+
     test "submitting the new-server form creates a server", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/servers/new")
 

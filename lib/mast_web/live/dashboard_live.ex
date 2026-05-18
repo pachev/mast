@@ -3,6 +3,8 @@ defmodule MastWeb.DashboardLive do
 
   alias Mast.Fleet
   alias Mast.Fleet.Server
+  alias Mast.Keys
+  alias Mast.Keys.PrivateKey
 
   @impl true
   def mount(_params, _session, socket) do
@@ -16,7 +18,9 @@ defmodule MastWeb.DashboardLive do
      |> assign(:filter, "")
      |> assign(:servers, servers)
      |> assign(:keys, [])
-     |> assign(:form, nil)}
+     |> assign(:form, nil)
+     |> assign(:key_form, nil)
+     |> assign(:show_new_key, false)}
   end
 
   @impl true
@@ -38,14 +42,21 @@ defmodule MastWeb.DashboardLive do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :index, _params), do: assign(socket, :form, nil)
+  defp apply_action(socket, :index, _params) do
+    socket
+    |> assign(:form, nil)
+    |> assign(:show_new_key, false)
+    |> assign(:key_form, nil)
+  end
 
   defp apply_action(socket, :new, _params) do
     cs = Fleet.change_server(%Server{user: "ubuntu", port: 22})
 
     socket
     |> assign(:form, to_form(cs, as: :server))
-    |> assign(:keys, Mast.Keys.list_keys())
+    |> assign(:keys, Keys.list_keys())
+    |> assign(:show_new_key, false)
+    |> assign(:key_form, nil)
   end
 
   @impl true
@@ -78,6 +89,52 @@ defmodule MastWeb.DashboardLive do
 
   def handle_event("cancel", _, socket) do
     {:noreply, push_patch(socket, to: ~p"/")}
+  end
+
+  def handle_event("toggle_new_key", _, socket) do
+    show? = not socket.assigns.show_new_key
+
+    key_form =
+      if show? do
+        to_form(PrivateKey.changeset(%PrivateKey{}, %{}), as: :key)
+      else
+        nil
+      end
+
+    {:noreply,
+     socket
+     |> assign(:show_new_key, show?)
+     |> assign(:key_form, key_form)}
+  end
+
+  def handle_event("validate_key", %{"key" => params}, socket) do
+    cs =
+      %PrivateKey{}
+      |> PrivateKey.changeset(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :key_form, to_form(cs, as: :key))}
+  end
+
+  def handle_event("save_key", %{"key" => params}, socket) do
+    case Keys.create_key(params) do
+      {:ok, key} ->
+        keys = Keys.list_keys()
+
+        form =
+          socket.assigns.form
+          |> server_form_with_key(key.id)
+
+        {:noreply,
+         socket
+         |> assign(:keys, keys)
+         |> assign(:form, form)
+         |> assign(:show_new_key, false)
+         |> assign(:key_form, nil)}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :key_form, to_form(cs, as: :key))}
+    end
   end
 
   # --- Render ---------------------------------------------------------------
@@ -172,14 +229,45 @@ defmodule MastWeb.DashboardLive do
             field={@form[:private_key_id]}
             type="select"
             label="Private key"
-            prompt={
-              if @keys == [],
-                do: "No keys registered — add one in key management first",
-                else: "— none —"
-            }
+            prompt={if @keys == [], do: "No keys registered yet", else: "— none —"}
             options={Enum.map(@keys, &{key_label(&1), &1.id})}
           />
+
+          <button
+            type="button"
+            phx-click="toggle_new_key"
+            class="text-xs text-[var(--mast-accent)] hover:underline"
+          >
+            {if @show_new_key, do: "Cancel adding new key", else: "Add new key"}
+          </button>
         </.form>
+
+        <div :if={@show_new_key} class="mt-3 pt-3 border-t border-[var(--mast-border)]">
+          <.form
+            for={@key_form}
+            id="new-key-form"
+            phx-change="validate_key"
+            phx-submit="save_key"
+            class="space-y-2"
+          >
+            <div
+              :for={msg <- key_form_errors(@key_form)}
+              class="text-xs text-[var(--mast-status-error)]"
+            >
+              {msg}
+            </div>
+            <.input field={@key_form[:name]} label="Key name" placeholder="prod ed25519" required />
+            <.input
+              field={@key_form[:body]}
+              type="textarea"
+              label="PEM body"
+              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+              rows="6"
+              required
+            />
+            <.ui_button type="submit" form="new-key-form">Save key</.ui_button>
+          </.form>
+        </div>
 
         <:footer>
           <.ui_button variant="secondary" phx-click={Phoenix.LiveView.JS.patch(~p"/")}>
@@ -224,6 +312,25 @@ defmodule MastWeb.DashboardLive do
 
   defp fleet_subtitle(%{total: n, online: online}) do
     "#{n} server#{if n == 1, do: "", else: "s"} · #{online} online"
+  end
+
+  defp key_form_errors(form) do
+    rendered_fields = [:name, :body]
+
+    form.errors
+    |> Enum.reject(fn {field, _} -> field in rendered_fields end)
+    |> Enum.map(fn {_field, {msg, _opts}} -> msg end)
+  end
+
+  defp server_form_with_key(form, key_id) do
+    params =
+      form.params
+      |> Map.new()
+      |> Map.put("private_key_id", to_string(key_id))
+
+    %Server{}
+    |> Fleet.change_server(params)
+    |> to_form(as: :server)
   end
 
   defp key_label(key) do
