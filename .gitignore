@@ -38,6 +38,3 @@ npm-debug.log
 # Per-operator SSH keys staged for the SSHKit user_dir.
 /priv/ssh/
 
-# Pencil.dev design files (work-in-progress redesign).
-*.pen
-
