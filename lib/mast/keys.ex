@@ -23,6 +23,19 @@ defmodule Mast.Keys do
   @doc "Fetches a key by id."
   def get_key!(id), do: Repo.get!(PrivateKey, id)
 
+  @doc """
+  Returns a map of `%{private_key_id => server_count}` for every key in
+  use. Keys with zero servers will be absent — callers should default to 0.
+  """
+  def server_counts do
+    Mast.Fleet.Server
+    |> where([s], not is_nil(s.private_key_id))
+    |> group_by([s], s.private_key_id)
+    |> select([s], {s.private_key_id, count(s.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
   @doc "Inserts a key after parsing/validating the PEM body."
   def create_key(attrs \\ %{}) do
     Multi.new()
