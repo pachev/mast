@@ -47,3 +47,8 @@ we'll switch to Mox.
 
 - 100% of `Mast.Fleet` patch logic is unit-testable.
 - We pay for an extra indirection on every call; negligible vs. SSH RTT.
+
+## Updates
+
+- 2026-05-18: superseded the `priv/ssh/` key staging convention. SSH keys
+  now live in the database, encrypted at rest. See [ADR 0006](0006-ssh-key-storage.md).
