@@ -1,0 +1,59 @@
+[tools]
+erlang = "28"
+elixir = "1.19"
+
+[tasks.setup]
+description = "Install deps, start db, setup schema"
+depends = ["db:start"]
+run = "mix deps.get && mix ecto.setup"
+
+[tasks.dev]
+description = "Start Phoenix server"
+depends = ["db:migrate"]
+run = "mix phx.server"
+
+[tasks.iex]
+description = "Start Phoenix server with IEx"
+depends = ["db:migrate"]
+run = "iex -S mix phx.server"
+
+[tasks.test]
+description = "Run tests"
+depends = ["db:start"]
+run = "mix test"
+
+[tasks.format]
+description = "Format code"
+run = "mix format"
+
+[tasks.deps]
+description = "Fetch deps"
+run = "mix deps.get"
+
+[tasks.db]
+alias = "db:start"
+
+[tasks."db:start"]
+description = "Start PostgreSQL container"
+run = """
+docker run -d --name mast-postgres \
+  -e POSTGRES_USER=mast \
+  -e POSTGRES_PASSWORD=mast \
+  -e POSTGRES_DB=mast_dev \
+  -p 7544:5432 \
+  postgres:18-alpine 2>/dev/null || docker start mast-postgres
+"""
+
+[tasks."db:stop"]
+description = "Stop PostgreSQL container"
+run = "docker stop mast-postgres"
+
+[tasks."db:migrate"]
+description = "Run pending migrations"
+depends = ["db:start"]
+run = "mix ecto.migrate"
+
+[tasks."db:reset"]
+description = "Drop, create, migrate, seed"
+depends = ["db:start"]
+run = "mix ecto.reset"
