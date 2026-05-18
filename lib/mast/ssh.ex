@@ -40,5 +40,20 @@ defmodule Mast.SSH do
     impl().run_stream(server, command, reducer, acc)
   end
 
+  @doc """
+  Ensures `server.private_key` is loaded. Workers grab a server by id and
+  hand it to `run/2`/`run_stream/4`; the SSHKit impl needs the key body
+  to dial. This helper centralises the preload so each caller doesn't
+  forget — and the no-key path is a no-op, so it's safe to call always.
+  """
+  @spec preload_key(Server.t()) :: Server.t()
+  def preload_key(%Server{private_key_id: nil} = server), do: server
+
+  def preload_key(%Server{private_key: %Mast.Keys.PrivateKey{}} = server), do: server
+
+  def preload_key(%Server{} = server) do
+    Mast.Repo.preload(server, :private_key)
+  end
+
   defp impl, do: Application.get_env(:mast, :ssh, Mast.SSH.SSHKit)
 end

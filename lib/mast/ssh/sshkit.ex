@@ -16,9 +16,10 @@ defmodule Mast.SSH.SSHKit do
   alias Mast.Fleet.Server
 
   @impl true
-  def run(%Server{host: host, user: user, port: port}, command) when is_binary(command) do
-    opts = connect_opts(port, user, 10_000)
-    context = SSHKit.context({host, opts})
+  def run(%Server{} = server, command) when is_binary(command) do
+    server = Mast.SSH.preload_key(server)
+    opts = connect_opts(server, 10_000)
+    context = SSHKit.context({server.host, opts})
 
     case SSHKit.run(context, command) do
       [{:ok, output, 0}] ->
@@ -36,11 +37,11 @@ defmodule Mast.SSH.SSHKit do
   end
 
   @impl true
-  def run_stream(%Server{host: host, user: user, port: port}, command, reducer, acc)
-      when is_binary(command) do
-    opts = connect_opts(port, user, :infinity)
+  def run_stream(%Server{} = server, command, reducer, acc) when is_binary(command) do
+    server = Mast.SSH.preload_key(server)
+    opts = connect_opts(server, :infinity)
 
-    case SSHKit.SSH.Connection.open(host, opts) do
+    case SSHKit.SSH.Connection.open(server.host, opts) do
       {:ok, conn} ->
         # Track {caller_acc, exit_code | nil} through the loop so we can emit
         # a final {:exit, code} event after closure.
@@ -81,16 +82,35 @@ defmodule Mast.SSH.SSHKit do
     end
   end
 
-  defp connect_opts(port, user, timeout) do
-    [
+  defp connect_opts(%Server{port: port, user: user} = server, timeout) do
+    base = [
       port: port,
       user: user,
-      user_dir: user_dir(),
       silently_accept_hosts: true,
       user_interaction: false,
       timeout: timeout
     ]
+
+    case key_pem(server) do
+      nil ->
+        # Fallback: legacy priv/ssh user_dir scan, kept for the bootstrap case
+        # where no DB-stored key exists yet. Will be removed once we have a
+        # default-key concept.
+        Keyword.put(base, :user_dir, user_dir())
+
+      pem when is_binary(pem) ->
+        Keyword.put(base, :key_cb, {Mast.SSH.KeyCb, [pem: pem]})
+    end
   end
+
+  defp key_pem(%Server{private_key: %Mast.Keys.PrivateKey{} = key}) do
+    case Mast.Keys.material(key) do
+      {:ok, pem} -> pem
+      _ -> nil
+    end
+  end
+
+  defp key_pem(_), do: nil
 
   defp render_output(output) when is_list(output) do
     output
