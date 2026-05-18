@@ -74,7 +74,7 @@ defmodule Mast.Apps.Probe.RpcExec do
   # The double-quote chars are escaped because we wrap the whole thing
   # in single quotes for the remote shell.
   @expression ~S'''
-  {wall_ms, _} = :erlang.statistics(:wall_clock); uptime_s = div(wall_ms, 1000); mem_mb = Float.round(:erlang.memory(:total) / 1_048_576, 1); procs = :erlang.system_info(:process_count); node = Atom.to_string(Node.self()); :io.format("~ts~n", [Jason.encode!(Enum.map(:application.which_applications(), fn {n, _, v} -> %{name: Atom.to_string(n), version: to_string(v), status: "running", memory_mb: mem_mb, processes: procs, uptime_seconds: uptime_s, node_name: node} end))])
+  {wall_ms, _} = :erlang.statistics(:wall_clock); uptime_s = div(wall_ms, 1000); mem_mb = Float.round(:erlang.memory(:total) / 1_048_576, 1); procs = :erlang.system_info(:process_count); msg_q = Enum.reduce(Process.list(), 0, fn p, acc -> case Process.info(p, :message_queue_len) do {:message_queue_len, n} -> acc + n; _ -> acc end end); otp = to_string(:erlang.system_info(:otp_release)); node = Atom.to_string(Node.self()); :io.format("~ts~n", [Jason.encode!(Enum.map(:application.which_applications(), fn {n, _, v} -> %{name: Atom.to_string(n), version: to_string(v), status: "running", memory_mb: mem_mb, processes: procs, msg_queue: msg_q, otp_release: otp, uptime_seconds: uptime_s, node_name: node} end))])
   '''
 
   defp expression, do: String.trim(@expression)
@@ -136,6 +136,8 @@ defmodule Mast.Apps.Probe.RpcExec do
              status: obs["status"] || "running",
              memory_mb: obs["memory_mb"],
              processes: obs["processes"],
+             msg_queue: obs["msg_queue"],
+             otp_release: obs["otp_release"],
              uptime_seconds: obs["uptime_seconds"]
            }
          end)}

@@ -17,6 +17,8 @@ defmodule Mast.Apps.Application do
     field :status, :string, default: "unknown"
     field :memory_mb, :float
     field :processes, :integer
+    field :msg_queue, :integer
+    field :otp_release, :string
     field :uptime_seconds, :integer
     field :last_seen_at, :utc_datetime_usec
     field :last_probe, :map
@@ -37,6 +39,8 @@ defmodule Mast.Apps.Application do
       :status,
       :memory_mb,
       :processes,
+      :msg_queue,
+      :otp_release,
       :uptime_seconds,
       :last_seen_at,
       :last_probe
