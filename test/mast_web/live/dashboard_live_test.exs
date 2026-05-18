@@ -1,0 +1,57 @@
+defmodule MastWeb.DashboardLiveTest do
+  use MastWeb.ConnCase, async: true
+
+  import Phoenix.LiveViewTest
+
+  alias Mast.Fleet
+
+  describe "index" do
+    test "shows empty state when no servers", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/")
+      assert html =~ "All Systems"
+      assert html =~ "No systems yet"
+    end
+
+    test "lists servers in a table", %{conn: conn} do
+      {:ok, _} = Fleet.create_server(%{name: "alpha", host: "10.0.0.7"})
+      {:ok, _} = Fleet.create_server(%{name: "zeta", host: "10.0.0.9"})
+
+      {:ok, _view, html} = live(conn, ~p"/")
+      assert html =~ "alpha"
+      assert html =~ "zeta"
+      assert html =~ "10.0.0.7"
+    end
+
+    test "Add System button opens the modal", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/")
+
+      view |> element("a", "Add System") |> render_click()
+      assert_patched(view, ~p"/servers/new")
+      assert render(view) =~ "Add a system"
+    end
+
+    test "submitting the new-server form creates a server", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/servers/new")
+
+      html =
+        view
+        |> form("#new-server-form", server: %{name: "web-1", host: "10.0.0.7"})
+        |> render_submit()
+
+      assert html =~ "web-1"
+      assert html =~ "10.0.0.7"
+      assert [%{name: "web-1"}] = Fleet.list_servers()
+    end
+
+    test "form shows validation errors on bad submit", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/servers/new")
+
+      html =
+        view
+        |> form("#new-server-form", server: %{name: "", host: ""})
+        |> render_submit()
+
+      assert html =~ "can&#39;t be blank"
+    end
+  end
+end
