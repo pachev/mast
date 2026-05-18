@@ -123,7 +123,7 @@ defmodule MastWeb.DashboardLive do
         </.card>
 
         <p class="text-right text-xs text-base-content/50 mt-4">
-          <span class="opacity-70">Mast</span> · v0.1
+          <span class="opacity-70">Mast</span> · v{Mast.version()}
         </p>
       </main>
 
