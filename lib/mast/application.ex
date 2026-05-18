@@ -7,15 +7,17 @@ defmodule Mast.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      MastWeb.Telemetry,
-      Mast.Repo,
-      {DNSCluster, query: Application.get_env(:mast, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Mast.PubSub},
-      {Oban, Application.fetch_env!(:mast, Oban)},
-      Mast.Workers.Ticker,
-      MastWeb.Endpoint
-    ]
+    children =
+      [
+        MastWeb.Telemetry,
+        Mast.Repo,
+        {DNSCluster, query: Application.get_env(:mast, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Mast.PubSub},
+        {Oban, Application.fetch_env!(:mast, Oban)},
+        Mast.Workers.Ticker,
+        MastWeb.Endpoint
+      ]
+      |> maybe_add_ssh_stub()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -29,5 +31,16 @@ defmodule Mast.Application do
   def config_change(changed, _new, removed) do
     MastWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  # In :test we run an in-memory SSH stub. Live it under our supervisor so it
+  # outlives individual test processes — the previous lazy ensure_started/0
+  # raced when tests exited and took the linked Agent with them.
+  defp maybe_add_ssh_stub(children) do
+    if Application.get_env(:mast, :ssh) == Mast.SSH.Stub do
+      children ++ [Mast.SSH.Stub]
+    else
+      children
+    end
   end
 end

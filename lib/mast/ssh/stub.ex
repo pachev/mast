@@ -1,7 +1,7 @@
 defmodule Mast.SSH.Stub do
   @moduledoc """
-  In-memory SSH executor for tests. Backed by an Agent so it works across
-  processes (LiveView tests, etc.).
+  In-memory SSH executor for tests. Supervised by `Mast.Application` when
+  `config :mast, :ssh, Mast.SSH.Stub` is set (see `config/test.exs`).
 
   - `expect/3` pre-registers a `run/2` response for a `{host, command}` pair.
   - `expect_stream/3` pre-registers an ordered list of stream events for a
@@ -21,12 +21,10 @@ defmodule Mast.SSH.Stub do
   end
 
   def reset do
-    ensure_started()
     Agent.update(__MODULE__, fn _ -> %{responses: %{}, streams: %{}, last: %{}} end)
   end
 
   def expect(%Server{} = server, command, response) do
-    ensure_started()
     key = {server.host, command}
 
     Agent.update(__MODULE__, fn state ->
@@ -35,7 +33,6 @@ defmodule Mast.SSH.Stub do
   end
 
   def expect_stream(%Server{} = server, command, events) when is_list(events) do
-    ensure_started()
     key = {server.host, command}
 
     Agent.update(__MODULE__, fn state ->
@@ -44,14 +41,11 @@ defmodule Mast.SSH.Stub do
   end
 
   def last_command(%Server{} = server) do
-    ensure_started()
     Agent.get(__MODULE__, fn state -> state.last[server.host] end)
   end
 
   @impl true
   def run(%Server{} = server, command) do
-    ensure_started()
-
     Agent.get_and_update(__MODULE__, fn state ->
       state = put_in(state, [:last, server.host], command)
 
@@ -64,8 +58,6 @@ defmodule Mast.SSH.Stub do
 
   @impl true
   def run_stream(%Server{} = server, command, reducer, acc) do
-    ensure_started()
-
     events =
       Agent.get_and_update(__MODULE__, fn state ->
         state = put_in(state, [:last, server.host], command)
@@ -77,12 +69,5 @@ defmodule Mast.SSH.Stub do
       end)
 
     Enum.reduce(events, acc, reducer)
-  end
-
-  defp ensure_started do
-    case start_link() do
-      {:ok, _} -> :ok
-      {:error, {:already_started, _}} -> :ok
-    end
   end
 end
