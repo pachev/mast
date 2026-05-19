@@ -82,7 +82,7 @@ defmodule MastWeb do
       # Core UI components
       import MastWeb.CoreComponents
       # Mast design-system components
-      import MastWeb.Components.UI
+      use MastWeb.Components.UI
 
       # Common modules used in templates
       alias MastWeb.Layouts

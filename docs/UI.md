@@ -426,16 +426,40 @@ Every Mast token has a dark counterpart already. As long as you reference
 tokens (not raw colors) and use daisyUI utilities (`bg-base-100`, etc),
 dark mode works without extra effort. The toggle is in the sidebar footer.
 
+## Module map
+
+The component library is split across `lib/mast_web/components/ui/` by
+family. `MastWeb.Components.UI` is a thin `__using__` entrypoint that
+imports every submodule, and `MastWeb` html_helpers does
+`use MastWeb.Components.UI` so every `ui_*` function is available in
+templates without imports.
+
+| File | Components |
+|------|-----------|
+| `ui/buttons.ex` | `ui_button` |
+| `ui/feedback.ex` | `ui_badge`, `ui_status_dot`, `ui_chip` |
+| `ui/forms.ex` | `ui_search` |
+| `ui/containers.ex` | `ui_card`, `ui_empty`, `ui_modal`, `ui_chart_card` |
+| `ui/navigation.ex` | `ui_tabs`, `ui_sidebar`, `ui_page_header` |
+| `ui/data.ex` | `ui_stat`, `ui_metric`, `ui_metric_tile`, `ui_stat_tile`, `ui_kv_table`, `ui_card_title` |
+| `ui/table.ex` | `ui_table` |
+| `ui/domain.ex` | `ui_server_card`, `ui_app_card`, `ui_app_row`, `ui_release_card`, `ui_log_entry`, `ui_audit_row` |
+| `ui/js.ex` | `show/2`, `hide/2` |
+
 ## Adding new components
 
-Add new function components to `lib/mast_web/components/ui.ex` only when
-you've reused the same markup three times. Until then, inline styles
-keep things easy to read. When you do add one:
+Add new function components to the right submodule under
+`lib/mast_web/components/ui/` only when you've reused the same markup
+three times. Until then, inline styles keep things easy to read. When
+you do add one:
 
 1. Name it `ui_<thing>/1`.
-2. Use tokens, never raw hex.
-3. Add a doc-comment with at least one usage example.
-4. Add a section in this document under the right category.
+2. Drop it in the family file from the map above (create a new one if
+   it genuinely doesn't fit and add it to the `__using__` macro in
+   `ui.ex`).
+3. Use tokens, never raw hex.
+4. Add a doc-comment with at least one usage example.
+5. Add a section in this document under the right category.
 
 Heroicons are the default icon set. Reach for them via
 `<span class="hero-name" />`. The full catalog is at
