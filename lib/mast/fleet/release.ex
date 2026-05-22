@@ -12,6 +12,8 @@ defmodule Mast.Fleet.Release do
   @log_sources ~w(systemd file none)
   @name_regex ~r/^[a-z0-9][a-z0-9_-]*$/
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "releases" do
     belongs_to :server, Mast.Fleet.Server
 

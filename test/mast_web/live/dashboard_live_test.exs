@@ -61,7 +61,7 @@ defmodule MastWeb.DashboardLiveTest do
         server: %{
           name: "with-key",
           host: "10.0.0.7",
-          private_key_id: Integer.to_string(key.id)
+          private_key_id: key.id
         }
       )
       |> render_submit()

@@ -9,7 +9,7 @@ import Config
 
 config :mast,
   ecto_repos: [Mast.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime, binary_id: true]
 
 # SSH executor (overridden in test). Used by Mast.SSH.run/2.
 config :mast, :ssh, Mast.SSH.SSHKit

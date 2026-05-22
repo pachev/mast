@@ -84,7 +84,7 @@ defmodule MastWeb.SettingsLive do
   end
 
   def handle_event("delete-key", %{"id" => id}, socket) do
-    key = Keys.get_key!(String.to_integer(id))
+    key = Keys.get_key!(id)
 
     case Keys.delete_key(key) do
       {:ok, _} ->

@@ -66,7 +66,6 @@ defmodule MastWeb.Audit.Presenter do
 
   defp detail_for(_), do: nil
 
-  defp actor_label(0), do: "System"
   defp actor_label(nil), do: "System"
   defp actor_label(id), do: "User ##{id}"
 

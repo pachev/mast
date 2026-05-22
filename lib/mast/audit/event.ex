@@ -3,22 +3,24 @@ defmodule Mast.Audit.Event do
   Audit event schema. Append-only. The table has no `updated_at` because
   rows are never modified after insert.
 
-  `actor_id` defaults to `0`, the "System" actor, until real user accounts
+  `actor_id` is `nil` for system-originated events, until real user accounts
   arrive. After that, callers should set it explicitly via
   `Mast.Audit.scope_to_actor_fields/1` (to be added with auth).
   """
   use Ecto.Schema
   import Ecto.Changeset
 
-  @system_actor_id 0
+  @system_actor_id nil
 
   @derive {Inspect, except: [:metadata]}
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "audit_events" do
     field :event_type, :string
-    field :actor_id, :integer, default: @system_actor_id
+    field :actor_id, :binary_id, default: @system_actor_id
     field :subject_type, :string
-    field :subject_id, :integer
+    field :subject_id, :binary_id
     field :metadata, :map, default: %{}
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
@@ -27,7 +29,7 @@ defmodule Mast.Audit.Event do
   @castable ~w(event_type actor_id subject_type subject_id metadata)a
   @required ~w(event_type)a
 
-  @doc "Returns the id used for system-originated audit events."
+  @doc "Returns the id used for system-originated audit events (nil)."
   def system_actor_id, do: @system_actor_id
 
   @doc false

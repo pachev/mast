@@ -28,7 +28,7 @@ defmodule MastWeb.ReleaseLive do
       Process.flag(:trap_exit, true)
     end
 
-    server = Fleet.get_server!(String.to_integer(server_id))
+    server = Fleet.get_server!(server_id)
 
     case Fleet.get_release(server, name) do
       nil ->

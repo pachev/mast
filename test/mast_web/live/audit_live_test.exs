@@ -29,8 +29,9 @@ defmodule MastWeb.AuditLiveTest do
     end
 
     test "filters by event_type dropdown", %{conn: conn} do
-      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: 1})
-      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: 1})
+      sid = Ecto.UUID.generate()
+      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: sid})
+      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: sid})
 
       {:ok, view, _} = live(conn, ~p"/audit")
 
@@ -44,8 +45,9 @@ defmodule MastWeb.AuditLiveTest do
     end
 
     test "filters by subject_type dropdown", %{conn: conn} do
-      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: 1})
-      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: 1})
+      sid = Ecto.UUID.generate()
+      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: sid})
+      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: sid})
 
       {:ok, view, _} = live(conn, ~p"/audit")
 

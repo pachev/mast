@@ -24,7 +24,7 @@ defmodule MastWeb.ApplicationLive do
       ) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Mast.PubSub, "servers")
 
-    server = Fleet.get_server!(String.to_integer(server_id))
+    server = Fleet.get_server!(server_id)
 
     case Fleet.get_release(server, release_handle) do
       nil ->

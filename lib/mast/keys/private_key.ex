@@ -15,6 +15,8 @@ defmodule Mast.Keys.PrivateKey do
 
   @derive {Inspect, except: [:body]}
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "private_keys" do
     field :name, :string
     field :body, Mast.Encrypted.Binary

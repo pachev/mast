@@ -10,6 +10,8 @@ defmodule Mast.Apps.Application do
 
   @statuses ~w(running stopped unreachable unknown)
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "applications" do
     field :name, :string
     field :node_name, :string

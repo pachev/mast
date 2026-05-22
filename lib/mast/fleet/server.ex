@@ -10,6 +10,8 @@ defmodule Mast.Fleet.Server do
 
   @statuses ~w(unknown up down)
 
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
   schema "servers" do
     field :name, :string
     field :host, :string

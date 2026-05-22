@@ -21,7 +21,7 @@ defmodule MastWeb.ServerLive do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    server = Fleet.get_server!(String.to_integer(id))
+    server = Fleet.get_server!(id)
 
     run_id = generate_run_id()
     topic = "runs:#{run_id}"
@@ -211,7 +211,7 @@ defmodule MastWeb.ServerLive do
   end
 
   def handle_event("delete-release", %{"id" => id}, socket) do
-    release = Fleet.get_release!(String.to_integer(id))
+    release = Fleet.get_release!(id)
 
     case Fleet.delete_release(release) do
       {:ok, _} ->

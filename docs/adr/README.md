@@ -10,6 +10,7 @@
 | 0006 | [SSH key storage and encryption](0006-ssh-key-storage.md) | Accepted |
 | 0007 | [Audit log from day one](0007-audit-log.md) | Accepted |
 | 0008 | [Releases as first-class, with per-Release Log Source](0008-releases-and-log-source.md) | Accepted |
+| 0009 | [Primary keys are UUIDs (binary_id)](0009-binary-id-primary-keys.md) | Accepted |
 
 New ADRs: copy an existing file, bump the number, fill in Context / Decision /
 Consequences. Keep them under one page.

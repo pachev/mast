@@ -153,7 +153,7 @@ defmodule Mast.Audit do
     with {:ok, raw} <- Base.url_decode64(cursor, padding: false),
          [iso, id_str] <- String.split(raw, "|", parts: 2),
          {:ok, ts, _} <- DateTime.from_iso8601(iso),
-         {id, ""} <- Integer.parse(id_str) do
+         {:ok, id} <- Ecto.UUID.cast(id_str) do
       {:ok, ts, id}
     else
       _ -> :error
@@ -162,7 +162,7 @@ defmodule Mast.Audit do
 
   @doc "Returns audit events for a single (subject_type, subject_id), newest first."
   def list_for_subject(subject_type, subject_id, limit \\ 20)
-      when is_binary(subject_type) and is_integer(subject_id) and is_integer(limit) and limit > 0 do
+      when is_binary(subject_type) and is_binary(subject_id) and is_integer(limit) and limit > 0 do
     Event
     |> where([e], e.subject_type == ^subject_type and e.subject_id == ^subject_id)
     |> order_by([e], desc: e.inserted_at)

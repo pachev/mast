@@ -110,7 +110,7 @@ defmodule Mast.Fleet do
   @doc "Lists Releases on a Server, ordered by effective handle."
   def list_releases(%Server{id: server_id}), do: list_releases(server_id)
 
-  def list_releases(server_id) when is_integer(server_id) do
+  def list_releases(server_id) when is_binary(server_id) do
     Release
     |> where([r], r.server_id == ^server_id)
     |> Repo.all()
@@ -124,7 +124,7 @@ defmodule Mast.Fleet do
   def get_release(%Server{id: server_id}, handle), do: get_release(server_id, handle)
 
   def get_release(server_id, handle)
-      when is_integer(server_id) and is_binary(handle) do
+      when is_binary(server_id) and is_binary(handle) do
     Release
     |> where([r], r.server_id == ^server_id)
     |> Repo.all()

@@ -6,10 +6,12 @@ defmodule Mast.AuditTest do
 
   describe "log/1" do
     test "inserts an event with the required fields" do
+      subject_id = Ecto.UUID.generate()
+
       attrs = %{
         event_type: "test.example",
         subject_type: "Server",
-        subject_id: 42,
+        subject_id: subject_id,
         metadata: %{note: "hello"}
       }
 
@@ -17,7 +19,7 @@ defmodule Mast.AuditTest do
       assert event.id
       assert event.event_type == "test.example"
       assert event.subject_type == "Server"
-      assert event.subject_id == 42
+      assert event.subject_id == subject_id
       assert %DateTime{} = event.inserted_at
 
       reloaded = Mast.Repo.get!(Event, event.id)
@@ -58,9 +60,11 @@ defmodule Mast.AuditTest do
     end
 
     test "accepts a function that derives attrs from prior multi changes" do
+      biz_id = Ecto.UUID.generate()
+
       multi =
         Ecto.Multi.new()
-        |> Ecto.Multi.run(:business, fn _repo, _changes -> {:ok, %{id: 123}} end)
+        |> Ecto.Multi.run(:business, fn _repo, _changes -> {:ok, %{id: biz_id}} end)
         |> Audit.multi_log(:audit, fn %{business: biz} ->
           %{
             event_type: "biz.created",
@@ -72,29 +76,33 @@ defmodule Mast.AuditTest do
 
       assert {:ok, %{audit: %Event{} = event}} = Mast.Repo.transaction(multi)
       reloaded = Mast.Repo.get!(Event, event.id)
-      assert reloaded.subject_id == 123
-      assert reloaded.metadata == %{"ref" => 123}
+      assert reloaded.subject_id == biz_id
+      assert reloaded.metadata == %{"ref" => biz_id}
     end
   end
 
   describe "list_for_subject/3" do
     test "returns only events matching the subject, newest first" do
-      Audit.log(%{event_type: "a", subject_type: "Server", subject_id: 1})
-      Audit.log(%{event_type: "b", subject_type: "Server", subject_id: 1})
-      Audit.log(%{event_type: "c", subject_type: "Server", subject_id: 2})
+      s1 = Ecto.UUID.generate()
+      s2 = Ecto.UUID.generate()
+      Audit.log(%{event_type: "a", subject_type: "Server", subject_id: s1})
+      Audit.log(%{event_type: "b", subject_type: "Server", subject_id: s1})
+      Audit.log(%{event_type: "c", subject_type: "Server", subject_id: s2})
 
-      events = Audit.list_for_subject("Server", 1, 10)
+      events = Audit.list_for_subject("Server", s1, 10)
       assert length(events) == 2
-      assert Enum.all?(events, &(&1.subject_id == 1))
+      assert Enum.all?(events, &(&1.subject_id == s1))
       assert hd(events).event_type == "b"
     end
 
     test "honors the limit" do
+      subject_id = Ecto.UUID.generate()
+
       for n <- 1..5 do
-        Audit.log(%{event_type: "e#{n}", subject_type: "Server", subject_id: 7})
+        Audit.log(%{event_type: "e#{n}", subject_type: "Server", subject_id: subject_id})
       end
 
-      assert length(Audit.list_for_subject("Server", 7, 3)) == 3
+      assert length(Audit.list_for_subject("Server", subject_id, 3)) == 3
     end
   end
 
@@ -139,10 +147,13 @@ defmodule Mast.AuditTest do
       %{events: page2, next_cursor: c2} = Audit.list_page(limit: 3, cursor: c1)
       %{events: page3, next_cursor: c3} = Audit.list_page(limit: 3, cursor: c2)
 
-      ids = Enum.map(page1 ++ page2 ++ page3, & &1.id)
+      events = page1 ++ page2 ++ page3
+      ids = Enum.map(events, & &1.id)
       assert length(ids) == 7
       assert ids == Enum.uniq(ids)
-      assert ids == Enum.sort(ids, :desc)
+      # Verify newest-first by inserted_at (UUID ids are not monotonic).
+      timestamps = Enum.map(events, & &1.inserted_at)
+      assert timestamps == Enum.sort(timestamps, {:desc, DateTime})
       assert c3 == nil
     end
 
@@ -157,8 +168,9 @@ defmodule Mast.AuditTest do
     end
 
     test "filters by subject_type in SQL" do
-      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: 1})
-      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: 1})
+      sid = Ecto.UUID.generate()
+      Audit.log(%{event_type: "key.created", subject_type: "PrivateKey", subject_id: sid})
+      Audit.log(%{event_type: "scan.run", subject_type: "Server", subject_id: sid})
 
       %{events: events} = Audit.list_page(subject_type: "Server", limit: 50)
       assert length(events) == 1

@@ -31,7 +31,7 @@ defmodule Mast.Apps do
   @doc "Lists applications attached to one Release."
   def list_for_release(%Release{id: id}), do: list_for_release(id)
 
-  def list_for_release(release_id) when is_integer(release_id) do
+  def list_for_release(release_id) when is_binary(release_id) do
     Application
     |> where([a], a.release_id == ^release_id)
     |> order_by([a], asc: a.name)
