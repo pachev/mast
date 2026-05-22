@@ -23,6 +23,7 @@ defmodule MastWeb.AppLive do
      |> assign(:page_title, app.name)
      |> assign(:app, app)
      |> assign(:server, app.server)
+     |> assign(:release, app.release)
      |> assign(:refreshing?, false)
      |> assign(:detail, detail)
      |> assign(:detail_error, detail_error)}
@@ -58,6 +59,7 @@ defmodule MastWeb.AppLive do
        socket
        |> assign(:app, app)
        |> assign(:server, app.server)
+       |> assign(:release, app.release)
        |> assign(:refreshing?, false)
        |> assign(:detail, detail)
        |> assign(:detail_error, detail_error)}

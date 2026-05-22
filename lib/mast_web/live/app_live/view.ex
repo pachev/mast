@@ -16,6 +16,7 @@ defmodule MastWeb.AppLive.View do
   attr :flash, :map, required: true
   attr :app, :map, required: true
   attr :server, :map, required: true
+  attr :release, :any, default: nil
   attr :refreshing?, :boolean, required: true
   attr :detail, :map, default: nil
   attr :detail_error, :any, default: nil
@@ -23,7 +24,7 @@ defmodule MastWeb.AppLive.View do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} active="servers" page_title={@app.name}>
-      <.detail_header app={@app} server={@server} refreshing?={@refreshing?} />
+      <.detail_header app={@app} server={@server} release={@release} refreshing?={@refreshing?} />
 
       <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <.ui_stat_tile
@@ -363,6 +364,7 @@ defmodule MastWeb.AppLive.View do
 
   attr :app, :map, required: true
   attr :server, :map, required: true
+  attr :release, :any, default: nil
   attr :refreshing?, :boolean, required: true
 
   defp detail_header(assigns) do
@@ -384,11 +386,22 @@ defmodule MastWeb.AppLive.View do
         </.link>
         <span class="text-[var(--mast-font-tertiary)]">/</span>
         <.link
-          navigate={~p"/servers/#{@server.id}?tab=apps"}
+          navigate={~p"/servers/#{@server.id}?tab=releases"}
           class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]"
         >
-          Apps
+          Releases
         </.link>
+        <%= if @release do %>
+          <span class="text-[var(--mast-font-tertiary)]">/</span>
+          <.link
+            navigate={
+              ~p"/servers/#{@server.id}/releases/#{Mast.Fleet.Release.effective_handle(@release)}"
+            }
+            class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]"
+          >
+            {Mast.Fleet.Release.effective_handle(@release)}
+          </.link>
+        <% end %>
         <span class="text-[var(--mast-font-tertiary)]">/</span>
         <span class="text-[var(--mast-font-primary)] font-medium">{@app.name}</span>
 

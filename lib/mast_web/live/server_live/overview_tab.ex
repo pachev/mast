@@ -191,11 +191,12 @@ defmodule MastWeb.ServerLive.OverviewTab do
   defp release_meta(%Release{log_source: source}), do: "probe + #{source} logs"
 
   # The Release is "up" if its main App row (App.name == basename of
-  # release_command) is running. Otherwise neutral.
-  defp release_status(%Release{release_command: rc}, apps) when is_binary(rc) and rc != "" do
+  # release_command, AND App.release_id == release.id) is running.
+  defp release_status(%Release{id: release_id, release_command: rc}, apps)
+       when is_binary(rc) and rc != "" do
     basename = Path.basename(rc)
 
-    case Enum.find(apps, &(&1.name == basename)) do
+    case Enum.find(apps, &(&1.release_id == release_id and &1.name == basename)) do
       nil -> "unknown"
       main -> main.status
     end
