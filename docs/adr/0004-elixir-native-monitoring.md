@@ -26,8 +26,17 @@ The operator records a single `release_command` field on the server row
 runs every 30s and stores the snapshot in the `applications` table.
 
 For richer per-app data (sup tree, scheduler load, memory categories) we
-will reuse the same `rpc` transport with `:observer_backend.*` calls,
-which is the same data Observer's GUI displays.
+reuse the same `rpc` transport with `:observer_backend.*` calls, which
+is the same data Observer's GUI displays. The detail probe is invoked
+view-scoped (on mount of `MastWeb.AppLive` and on the Refresh button),
+not by the periodic worker, so it doesn't widen the 30s scan budget.
+
+`:observer_backend` ships with OTP's `runtime_tools` application. When
+the target release omits `:runtime_tools` from `extra_applications`,
+the remote expression returns a sentinel error, the probe propagates
+`{:error, :observer_backend_unavailable}`, and the LiveView falls back
+to the scalar stats already produced by `probe/1` plus a small info
+banner pointing at the README. No flash, no crash.
 
 ## Original context
 

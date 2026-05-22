@@ -4,6 +4,27 @@ All notable changes to Mast are tracked here. Format roughly follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Observer-style per-app detail on AppLive: system snapshot
+  (scheduler utilization, atom/port/process/ets counts, memory by
+  category), collapsible supervision tree capped at depth 3, and
+  top-10 processes by memory and message-queue length. Backed by
+  `:observer_backend` over the existing `bin/<release> rpc` channel
+  (issue #5).
+- Graceful fallback when the target release omits `:runtime_tools`:
+  the page keeps the scalar stats and surfaces an info banner
+  pointing at the README instead of erroring.
+
+### Changed
+- AppLive: removed the "Memory over time" placeholder card. The real
+  chart lands when application sampling exists (issue #15).
+- README: documents the `extra_applications: [:runtime_tools]`
+  requirement and the graceful-fallback behaviour.
+- ADR 0004: records the `:observer_backend` probe expression and its
+  view-scoped invocation (mount + Refresh, not the 30s worker).
+
 ## [0.5.0] - 2026-05-22
 
 ### Added

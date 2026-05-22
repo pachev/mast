@@ -136,7 +136,7 @@ expression runs inside your release's BEAM, reads
 roundtrip per probe, no extra ports, no cookies for mast to manage. See
 [ADR 0004](docs/adr/0004-elixir-native-monitoring.md) for the rationale.
 
-For this to work, your mix release needs two things:
+For this to work, your mix release needs three things:
 
 ### 1. Short-name distribution
 
@@ -170,7 +170,30 @@ like `myhost.internal.example.com` that resolves back to the same IP),
 you can keep long names. Short names are simpler and the default mix
 release tooling assumes them.
 
-### 2. Wire the release path into mast
+### 2. `runtime_tools` in `extra_applications`
+
+The per-app detail view (scheduler load, supervision tree, top processes
+by memory and message queue) is powered by `:observer_backend`, which
+ships with OTP's `runtime_tools` application. New projects from
+`mix phx.new` already include it, but if your release was started from a
+bare `mix new` template you may need to add it:
+
+```elixir
+# mix.exs
+def application do
+  [
+    mod: {MyApp.Application, []},
+    extra_applications: [:logger, :runtime_tools]
+  ]
+end
+```
+
+Without `:runtime_tools`, mast still shows the scalar stats from the
+regular probe (memory, processes, uptime, message queue) and the
+per-app page surfaces a small banner pointing back here. Adding it
+unlocks the richer Observer-style sections.
+
+### 3. Wire the release path into mast
 
 On the server's detail page in mast, open the **Settings** tab and set
 **Release command** to the absolute path of your release's
@@ -198,12 +221,3 @@ The test suite uses `Mast.SSH.Stub` and does not touch the network.
 - GitHub issues on this repo are the canonical task tracker for
   follow-up work.
 
-## Roadmap
-
-- **v0.5** — full key management UI (list, add via paste, delete)
-- **v0.5** — richer per-app detail via `:observer_backend.*` over the
-  same `rpc` channel (sup tree, scheduler load, memory categories)
-- **Later** — dist-upgrade for kernel/held packages, AL2023
-  release-version drift tracking ([#13](https://github.com/pachev/mast/issues/13)),
-  pacman/apk/zypper parsers, app-level alerting on status transitions,
-  plain HTTP/TCP fallback for non-Elixir apps

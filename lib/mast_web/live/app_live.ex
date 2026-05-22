@@ -6,6 +6,7 @@ defmodule MastWeb.AppLive do
   use MastWeb, :live_view
 
   alias Mast.Apps
+  alias Mast.Apps.Probe
   alias Mast.Workers.AppProbe
   alias MastWeb.AppLive.View
 
@@ -15,24 +16,40 @@ defmodule MastWeb.AppLive do
 
     app = Apps.get_app!(String.to_integer(id))
 
+    {detail, detail_error} = fetch_detail(app)
+
     {:ok,
      socket
      |> assign(:page_title, app.name)
      |> assign(:app, app)
      |> assign(:server, app.server)
-     |> assign(:refreshing?, false)}
+     |> assign(:refreshing?, false)
+     |> assign(:detail, detail)
+     |> assign(:detail_error, detail_error)}
+  end
+
+  defp fetch_detail(app) do
+    case Probe.probe_detail(app.server, app.name) do
+      {:ok, detail} -> {detail, nil}
+      {:error, reason} -> {nil, reason}
+    end
+  rescue
+    _ -> {nil, :probe_crashed}
   end
 
   @impl true
   def handle_info({:apps_updated, server_id}, socket) do
     if server_id == socket.assigns.app.server_id do
       app = Apps.get_app!(socket.assigns.app.id)
+      {detail, detail_error} = fetch_detail(app)
 
       {:noreply,
        socket
        |> assign(:app, app)
        |> assign(:server, app.server)
-       |> assign(:refreshing?, false)}
+       |> assign(:refreshing?, false)
+       |> assign(:detail, detail)
+       |> assign(:detail_error, detail_error)}
     else
       {:noreply, socket}
     end
