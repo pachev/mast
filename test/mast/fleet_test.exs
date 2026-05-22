@@ -173,4 +173,128 @@ defmodule Mast.FleetTest do
       assert s3.unreachable_count == 2
     end
   end
+
+  describe "Release CRUD" do
+    alias Mast.Audit.Event
+    alias Mast.Fleet.Release
+
+    defp release_server do
+      {:ok, s} =
+        Fleet.create_server(%{
+          name: "rel-srv-#{System.unique_integer([:positive])}",
+          host: "10.0.0.99"
+        })
+
+      s
+    end
+
+    test "create_release/1 inserts and emits release.created" do
+      s = release_server()
+
+      assert {:ok, %Release{} = r} =
+               Fleet.create_release(%{
+                 server_id: s.id,
+                 release_command: "/opt/web/bin/web"
+               })
+
+      assert r.server_id == s.id
+      assert Release.effective_handle(r) == "web"
+
+      [event] =
+        Repo.all(
+          from e in Event,
+            where: e.subject_type == "Release" and e.subject_id == ^r.id,
+            order_by: [desc: e.id]
+        )
+
+      assert event.event_type == "release.created"
+      assert event.metadata["handle"] == "web"
+    end
+
+    test "create_release/1 rejects duplicate handle on the same Server" do
+      s = release_server()
+
+      {:ok, _} =
+        Fleet.create_release(%{server_id: s.id, release_command: "/opt/web/bin/app"})
+
+      assert {:error, _cs} =
+               Fleet.create_release(%{
+                 server_id: s.id,
+                 release_command: "/srv/other/bin/app"
+               })
+    end
+
+    test "update_release/2 emits release.updated" do
+      s = release_server()
+
+      {:ok, r} =
+        Fleet.create_release(%{server_id: s.id, release_command: "/opt/web/bin/web"})
+
+      assert {:ok, r2} =
+               Fleet.update_release(r, %{log_source: "file", log_target: "/var/log/web.log"})
+
+      assert r2.log_source == "file"
+      assert r2.log_target == "/var/log/web.log"
+
+      events =
+        Repo.all(
+          from e in Event,
+            where: e.subject_type == "Release" and e.subject_id == ^r.id,
+            order_by: [desc: e.id]
+        )
+
+      assert Enum.any?(events, &(&1.event_type == "release.updated"))
+    end
+
+    test "delete_release/1 emits release.deleted" do
+      s = release_server()
+
+      {:ok, r} =
+        Fleet.create_release(%{server_id: s.id, release_command: "/opt/web/bin/web"})
+
+      assert {:ok, _} = Fleet.delete_release(r)
+      assert Repo.get(Release, r.id) == nil
+
+      events =
+        Repo.all(
+          from e in Event,
+            where: e.subject_type == "Release" and e.subject_id == ^r.id,
+            order_by: [desc: e.id]
+        )
+
+      assert Enum.any?(events, &(&1.event_type == "release.deleted"))
+    end
+
+    test "list_releases/1 returns Releases on a Server sorted by handle" do
+      s = release_server()
+
+      {:ok, _b} =
+        Fleet.create_release(%{
+          server_id: s.id,
+          name: "beta",
+          release_command: "/opt/beta/bin/x"
+        })
+
+      {:ok, _a} =
+        Fleet.create_release(%{
+          server_id: s.id,
+          name: "alpha",
+          release_command: "/opt/alpha/bin/x"
+        })
+
+      assert Enum.map(Fleet.list_releases(s), &Release.effective_handle/1) == ["alpha", "beta"]
+    end
+
+    test "get_release/2 finds by effective handle (name or basename)" do
+      s = release_server()
+
+      {:ok, r} =
+        Fleet.create_release(%{server_id: s.id, release_command: "/opt/web/bin/web"})
+
+      assert %Release{id: id} = Fleet.get_release(s, "web")
+      assert id == r.id
+
+      assert Fleet.get_release(s, "missing") == nil
+    end
+  end
 end
