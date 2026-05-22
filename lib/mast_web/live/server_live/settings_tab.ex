@@ -1,12 +1,12 @@
 defmodule MastWeb.ServerLive.SettingsTab do
   @moduledoc """
-  Settings tab for `MastWeb.ServerLive`: connection info, monitoring
-  form, danger-zone remove flow.
+  Settings tab for `MastWeb.ServerLive`: connection info, danger-zone
+  remove flow. Release-level config (release_command, log_source, log_target)
+  lives on `MastWeb.ReleaseLive` since ADR 0008.
   """
   use MastWeb, :html
 
   attr :server, :map, required: true
-  attr :monitoring_form, :any, required: true
   attr :confirm_delete?, :boolean, required: true
   attr :confirm_name, :string, required: true
 
@@ -31,33 +31,6 @@ defmodule MastWeb.ServerLive.SettingsTab do
             {@server.package_manager || "—"}
           </dd>
         </dl>
-      </.ui_card>
-
-      <.ui_card>
-        <:title>App monitoring</:title>
-        <:subtitle>
-          Path to a mix release's <code class="font-mono">bin/&lt;name&gt;</code>
-          script.
-          Mast invokes <code class="font-mono">&lt;path&gt; rpc</code>
-          over SSH to read running applications.
-        </:subtitle>
-
-        <.form
-          for={@monitoring_form}
-          phx-submit="save-monitoring"
-          id="monitoring-form"
-          class="space-y-3"
-        >
-          <.input
-            field={@monitoring_form[:release_command]}
-            label="Release command"
-            placeholder="/opt/hermes/bin/hermes"
-          />
-
-          <div class="flex justify-end gap-2 pt-1">
-            <.ui_button type="submit">Save</.ui_button>
-          </div>
-        </.form>
       </.ui_card>
 
       <div class="rounded-[var(--radius-box)] border border-[var(--mast-status-offline)] bg-[var(--mast-bg-card)] p-6">

@@ -6,19 +6,18 @@ defmodule MastWeb.ServerLive do
   use MastWeb, :live_view
 
   alias Mast.{Apps, Fleet}
-  alias Mast.Fleet.Server
+  alias Mast.Fleet.Release
   alias Mast.Workers.{ApplyUpdates, AppProbe, ConnectionCheck, PatchScan}
 
   alias MastWeb.ServerLive.{
-    AppsTab,
     Header,
-    LogsTab,
     OverviewTab,
+    ReleasesTab,
     SettingsTab,
     UpdatesTab
   }
 
-  @tabs ~w(overview apps logs updates settings)
+  @tabs ~w(overview releases updates settings)
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -44,8 +43,9 @@ defmodule MastWeb.ServerLive do
      |> assign(:probing?, false)
      |> assign(:probe_error, nil)
      |> assign(:apps, Apps.list_for_server(server.id))
+     |> assign(:releases, Fleet.list_releases(server))
+     |> assign(:new_release_changeset, nil)
      |> assign(:show_system_apps?, false)
-     |> assign(:monitoring_form, monitoring_form(server))
      |> assign(:confirm_delete?, false)
      |> assign(:confirm_name, "")
      |> assign(:updates_page, 1)
@@ -58,12 +58,6 @@ defmodule MastWeb.ServerLive do
 
   defp load_activity(server_id) do
     Mast.Audit.list_for_subject("Server", server_id, 10)
-  end
-
-  defp monitoring_form(server) do
-    server
-    |> Server.monitoring_changeset(%{})
-    |> to_form(as: :monitoring)
   end
 
   @impl true
@@ -182,6 +176,55 @@ defmodule MastWeb.ServerLive do
     {:noreply, update(socket, :show_system_apps?, &(!&1))}
   end
 
+  def handle_event("open-add-release", _, socket) do
+    cs = Fleet.change_release(%Release{server_id: socket.assigns.server.id})
+    {:noreply, assign(socket, :new_release_changeset, cs)}
+  end
+
+  def handle_event("cancel-add-release", _, socket) do
+    {:noreply, assign(socket, :new_release_changeset, nil)}
+  end
+
+  def handle_event("validate-new-release", %{"release" => attrs}, socket) do
+    cs =
+      %Release{server_id: socket.assigns.server.id}
+      |> Fleet.change_release(Map.put(attrs, "server_id", socket.assigns.server.id))
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :new_release_changeset, cs)}
+  end
+
+  def handle_event("create-release", %{"release" => attrs}, socket) do
+    attrs = Map.put(attrs, "server_id", socket.assigns.server.id)
+
+    case Fleet.create_release(attrs) do
+      {:ok, _release} ->
+        {:noreply,
+         socket
+         |> assign(:new_release_changeset, nil)
+         |> assign(:releases, Fleet.list_releases(socket.assigns.server))
+         |> put_flash(:info, "Release added.")}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :new_release_changeset, cs)}
+    end
+  end
+
+  def handle_event("delete-release", %{"id" => id}, socket) do
+    release = Fleet.get_release!(String.to_integer(id))
+
+    case Fleet.delete_release(release) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:releases, Fleet.list_releases(socket.assigns.server))
+         |> put_flash(:info, "Release removed.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Could not remove Release.")}
+    end
+  end
+
   def handle_event("probe-apps", _, socket) do
     %{server_id: socket.assigns.server.id}
     |> AppProbe.new()
@@ -191,20 +234,6 @@ defmodule MastWeb.ServerLive do
      socket
      |> assign(:probing?, true)
      |> assign(:probe_error, nil)}
-  end
-
-  def handle_event("save-monitoring", %{"monitoring" => params}, socket) do
-    case Fleet.update_monitoring(socket.assigns.server, params) do
-      {:ok, server} ->
-        {:noreply,
-         socket
-         |> assign(:server, server)
-         |> assign(:monitoring_form, monitoring_form(server))
-         |> put_flash(:info, "Monitoring updated")}
-
-      {:error, cs} ->
-        {:noreply, assign(socket, :monitoring_form, to_form(cs, as: :monitoring))}
-    end
   end
 
   def handle_event("open-delete-confirm", _, socket) do
@@ -330,17 +359,18 @@ defmodule MastWeb.ServerLive do
 
       <%= case @tab do %>
         <% "overview" -> %>
-          <OverviewTab.render server={@server} apps={@apps} activity={@activity} />
-        <% "apps" -> %>
-          <AppsTab.render
+          <OverviewTab.render
             server={@server}
             apps={@apps}
-            show_system_apps?={@show_system_apps?}
-            probing?={@probing?}
-            probe_error={@probe_error}
+            releases={@releases}
+            activity={@activity}
           />
-        <% "logs" -> %>
-          <LogsTab.render streams={@streams} log_count={@log_count} running?={@running?} />
+        <% "releases" -> %>
+          <ReleasesTab.render
+            server={@server}
+            releases={@releases}
+            new_release_changeset={@new_release_changeset}
+          />
         <% "updates" -> %>
           <UpdatesTab.render
             server={@server}
@@ -354,7 +384,6 @@ defmodule MastWeb.ServerLive do
         <% "settings" -> %>
           <SettingsTab.render
             server={@server}
-            monitoring_form={@monitoring_form}
             confirm_delete?={@confirm_delete?}
             confirm_name={@confirm_name}
           />

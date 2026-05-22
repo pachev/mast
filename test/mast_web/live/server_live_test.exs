@@ -255,23 +255,5 @@ defmodule MastWeb.ServerLiveTest do
       html = render(view)
       refute html =~ "ghost"
     end
-
-    test "live log pane shows streamed events", %{conn: conn} do
-      {:ok, server} = Fleet.create_server(%{name: "delta", host: "10.0.0.10"})
-
-      # Logs render on the Logs tab now; the overview shows Recent Activity instead.
-      {:ok, view, _html} = live(conn, ~p"/servers/#{server}?tab=logs")
-
-      run_id = :sys.get_state(view.pid).socket.assigns.run_id
-
-      Phoenix.PubSub.broadcast(
-        Mast.PubSub,
-        "runs:#{run_id}",
-        {:run_event, run_id, {:line, :stdout, "hello from upgrade\n"}}
-      )
-
-      html = render(view)
-      assert html =~ "hello from upgrade"
-    end
   end
 end

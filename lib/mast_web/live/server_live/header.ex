@@ -68,8 +68,7 @@ defmodule MastWeb.ServerLive.Header do
 
       <.ui_tabs active={@tab} class="mt-4 border-b-0">
         <:tab key="overview" patch={~p"/servers/#{@server.id}?tab=overview"}>Overview</:tab>
-        <:tab key="apps" patch={~p"/servers/#{@server.id}?tab=apps"}>Apps</:tab>
-        <:tab key="logs" patch={~p"/servers/#{@server.id}?tab=logs"}>Logs</:tab>
+        <:tab key="releases" patch={~p"/servers/#{@server.id}?tab=releases"}>Releases</:tab>
         <:tab
           key="updates"
           patch={~p"/servers/#{@server.id}?tab=updates"}
@@ -89,16 +88,15 @@ defmodule MastWeb.ServerLive.Header do
   attr :running?, :boolean, required: true
   attr :probing?, :boolean, required: true
 
-  defp header_actions(%{tab: "apps"} = assigns) do
+  defp header_actions(%{tab: "releases"} = assigns) do
     ~H"""
     <.ui_button
       icon="hero-signal"
       size="sm"
       phx-click="probe-apps"
       loading={@probing?}
-      disabled={@probing? or @server.release_command in [nil, ""]}
     >
-      {if @probing?, do: "Probing…", else: "Probe Now"}
+      {if @probing?, do: "Probing…", else: "Probe All"}
     </.ui_button>
     """
   end

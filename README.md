@@ -127,6 +127,28 @@ the host's package manager (`apt-get` on Debian/Ubuntu, `dnf` on AL2023
 and Fedora-family). The workers prefix `sudo -n ` to those commands; if
 sudo requires a password, scans and applies will fail silently.
 
+Mast also reads logs through `sudo -n` (see ADR 0008). The SSH user
+needs NOPASSWD entries for the commands that back each Log Source:
+
+```
+# /etc/sudoers.d/mast
+ubuntu ALL=(root) NOPASSWD: /usr/bin/journalctl -u *
+ubuntu ALL=(root) NOPASSWD: /usr/bin/tail -n 200 -F /var/log/myapp/*
+ubuntu ALL=(root) NOPASSWD: /usr/bin/tail -n 200 -F /var/log/hermes-toy/*
+```
+
+Notes:
+
+- One rule per `tail` path is the right shape. Wildcarding `tail -F *`
+  hands any reader of that user account a read primitive across the
+  whole filesystem, which is a foot-gun.
+- `journalctl -u *` is broader than the apt entries because Mast does
+  not know the unit name at sudoers-write time. It is bounded to read
+  operations on the journal.
+- Without these entries, the Logs tab will show `sudo: a password is
+  required` in the stream and stop. That's a louder failure than
+  silently empty output, which is by design.
+
 ## Making your Elixir app monitorable
 
 Mast monitors Elixir applications by invoking

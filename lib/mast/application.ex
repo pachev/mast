@@ -17,6 +17,7 @@ defmodule Mast.Application do
         {Task.Supervisor, name: Mast.TaskSupervisor},
         {Oban, Application.fetch_env!(:mast, Oban)},
         Mast.Workers.Ticker,
+        Mast.Logs.Janitor,
         MastWeb.Endpoint
       ]
       |> maybe_add_ssh_stub()

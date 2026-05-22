@@ -18,16 +18,21 @@ defmodule Mast.Apps.ProbeDetailTest do
   setup do
     Stub.reset()
     {:ok, server} = Fleet.create_server(%{name: "hermes", host: "10.0.0.1"})
-    {:ok, server} = Fleet.update_monitoring(server, %{release_command: "/opt/hermes/bin/hermes"})
 
-    Apps.upsert_from_probe(server, [
+    {:ok, release} =
+      Fleet.create_release(%{
+        server_id: server.id,
+        release_command: "/opt/hermes/bin/hermes"
+      })
+
+    Apps.upsert_from_probe(release, [
       %{name: "hermes", node_name: "h@h", status: "running"}
     ])
 
-    {:ok, server: server}
+    {:ok, server: server, release: release}
   end
 
-  test "delegates to the configured stub", %{server: server} do
+  test "delegates to the configured stub", %{release: release} do
     payload = %{
       sys_info: %{
         scheduler_utilization: 12.5,
@@ -67,15 +72,17 @@ defmodule Mast.Apps.ProbeDetailTest do
       ]
     }
 
-    Stub.plant_detail(server, "hermes", {:ok, payload})
+    Stub.plant_detail(release, "hermes", {:ok, payload})
 
-    assert {:ok, ^payload} = Probe.probe_detail(server, "hermes")
+    assert {:ok, ^payload} = Probe.probe_detail(release, "hermes")
   end
 
-  test "returns :observer_backend_unavailable when remote lacks runtime_tools", %{server: server} do
-    Stub.plant_detail(server, "hermes", {:error, :observer_backend_unavailable})
+  test "returns :observer_backend_unavailable when remote lacks runtime_tools", %{
+    release: release
+  } do
+    Stub.plant_detail(release, "hermes", {:error, :observer_backend_unavailable})
 
     assert {:error, :observer_backend_unavailable} =
-             Probe.probe_detail(server, "hermes")
+             Probe.probe_detail(release, "hermes")
   end
 end

@@ -15,8 +15,7 @@ defmodule MastWeb.ServerLive.Helpers do
 
   @doc "Title-case label for a tab key."
   def tab_label("overview"), do: "Overview"
-  def tab_label("apps"), do: "Apps"
-  def tab_label("logs"), do: "Logs"
+  def tab_label("releases"), do: "Releases"
   def tab_label("updates"), do: "Updates"
   def tab_label("settings"), do: "Settings"
   def tab_label(_), do: "Overview"

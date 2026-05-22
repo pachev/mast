@@ -195,7 +195,7 @@ defmodule MastWeb.Components.UI.Data do
 
   @doc """
   Big-number stat tile (icon + label + mono value + sub-label). Designed
-  for dense KPI rows on detail pages like AppLive.
+  for dense KPI rows on detail pages like ApplicationLive.
 
       <.ui_stat_tile icon="hero-cpu-chip" label="Memory" value="106.0 MB" sub="Total VM allocation" />
       <.ui_stat_tile label="Msg Queue" value="0" sub="Mailbox backlog" tone="accent" />

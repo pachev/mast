@@ -165,34 +165,6 @@ defmodule MastWeb.DashboardLiveTest do
       )
     end
 
-    test "new-server form accepts an optional release_command", %{conn: conn} do
-      {:ok, view, html} = live(conn, ~p"/servers/new")
-
-      assert html =~ "Release command"
-
-      view
-      |> form("#new-server-form",
-        server: %{name: "rel", host: "10.0.0.30", release_command: "/opt/rel/bin/rel"}
-      )
-      |> render_submit()
-
-      assert [%{name: "rel", release_command: "/opt/rel/bin/rel"}] = Fleet.list_servers()
-    end
-
-    test "new-server form rejects a non-absolute release_command", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/servers/new")
-
-      html =
-        view
-        |> form("#new-server-form",
-          server: %{name: "bad", host: "10.0.0.31", release_command: "rel"}
-        )
-        |> render_submit()
-
-      assert html =~ "must be an absolute path"
-      assert Fleet.list_servers() == []
-    end
-
     test "form shows validation errors on bad submit", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/servers/new")
 

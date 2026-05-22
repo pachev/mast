@@ -1,4 +1,4 @@
-defmodule MastWeb.AppLiveTest do
+defmodule MastWeb.ApplicationLiveTest do
   use MastWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -9,10 +9,15 @@ defmodule MastWeb.AppLiveTest do
   setup do
     Stub.reset()
     {:ok, server} = Fleet.create_server(%{name: "hermes", host: "10.0.0.1"})
-    {:ok, server} = Fleet.update_monitoring(server, %{release_command: "/opt/hermes/bin/hermes"})
+
+    {:ok, release} =
+      Fleet.create_release(%{
+        server_id: server.id,
+        release_command: "/opt/hermes/bin/hermes"
+      })
 
     {:ok, [app]} =
-      Apps.upsert_from_probe(server, [
+      Apps.upsert_from_probe(release, [
         %{
           name: "hermes",
           node_name: "hermes@host",
@@ -26,14 +31,14 @@ defmodule MastWeb.AppLiveTest do
         }
       ])
 
-    {:ok, server: server, app: app}
+    {:ok, server: server, release: release, app: app}
   end
 
   test "renders scalar stats + fallback banner when observer_backend is unavailable",
-       %{conn: conn, server: server, app: app} do
-    Stub.plant_detail(server, app.name, {:error, :observer_backend_unavailable})
+       %{conn: conn, server: server, release: release, app: app} do
+    Stub.plant_detail(release, app.name, {:error, :observer_backend_unavailable})
 
-    {:ok, _view, html} = live(conn, ~p"/apps/#{app.id}")
+    {:ok, _view, html} = live(conn, ~p"/servers/#{server.id}/releases/hermes/apps/#{app.name}")
 
     # Existing scalar stats still render.
     assert html =~ "106.0 MB"
@@ -49,8 +54,8 @@ defmodule MastWeb.AppLiveTest do
   end
 
   test "renders observer sections when detail probe succeeds",
-       %{conn: conn, server: server, app: app} do
-    Stub.plant_detail(server, app.name, {
+       %{conn: conn, server: server, release: release, app: app} do
+    Stub.plant_detail(release, app.name, {
       :ok,
       %{
         sys_info: %{
@@ -106,7 +111,7 @@ defmodule MastWeb.AppLiveTest do
       }
     })
 
-    {:ok, _view, html} = live(conn, ~p"/apps/#{app.id}")
+    {:ok, _view, html} = live(conn, ~p"/servers/#{server.id}/releases/hermes/apps/#{app.name}")
 
     assert html =~ "System snapshot"
     assert html =~ "Supervision tree"

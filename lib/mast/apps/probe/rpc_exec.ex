@@ -20,6 +20,8 @@ defmodule Mast.Apps.Probe.RpcExec do
   """
   @behaviour Mast.Apps.Probe
 
+  alias Mast.Fleet.Release
+  alias Mast.Repo
   alias Mast.SSH
 
   require Logger
@@ -27,16 +29,17 @@ defmodule Mast.Apps.Probe.RpcExec do
   @timeout_ms 15_000
 
   @impl true
-  def probe(%{release_command: nil}), do: {:error, :release_command_not_set}
-  def probe(%{release_command: ""}), do: {:error, :release_command_not_set}
+  def probe(%Release{release_command: nil}), do: {:error, :release_command_not_set}
+  def probe(%Release{release_command: ""}), do: {:error, :release_command_not_set}
 
-  def probe(server) do
+  def probe(%Release{} = release) do
+    {server, release} = resolve(release)
     parent = self()
 
     task =
       Task.Supervisor.async_nolink(Mast.TaskSupervisor, fn ->
         send(parent, :probe_started)
-        SSH.run(server, command(server))
+        SSH.run(server, command(release))
       end)
 
     case Task.yield(task, @timeout_ms) || Task.shutdown(task, :brutal_kill) do
@@ -44,30 +47,31 @@ defmodule Mast.Apps.Probe.RpcExec do
         parse(output)
 
       {:ok, {:error, reason}} ->
-        Logger.warning("AppProbe SSH failed for server=#{server.id}: #{inspect(reason)}")
+        Logger.warning("AppProbe SSH failed for release=#{release.id}: #{inspect(reason)}")
         {:error, friendly_error(reason)}
 
       {:exit, reason} ->
-        Logger.error("AppProbe crashed for server=#{server.id}: #{inspect(reason)}")
+        Logger.error("AppProbe crashed for release=#{release.id}: #{inspect(reason)}")
         {:error, "probe crashed: #{inspect(reason)}"}
 
       nil ->
-        Logger.warning("AppProbe timed out after #{@timeout_ms}ms for server=#{server.id}")
+        Logger.warning("AppProbe timed out after #{@timeout_ms}ms for release=#{release.id}")
         {:error, :timeout}
     end
   end
 
   @impl true
-  def probe_detail(%{release_command: nil}, _), do: {:error, :release_command_not_set}
-  def probe_detail(%{release_command: ""}, _), do: {:error, :release_command_not_set}
+  def probe_detail(%Release{release_command: nil}, _), do: {:error, :release_command_not_set}
+  def probe_detail(%Release{release_command: ""}, _), do: {:error, :release_command_not_set}
 
-  def probe_detail(server, app_name) do
+  def probe_detail(%Release{} = release, app_name) do
+    {server, release} = resolve(release)
     parent = self()
 
     task =
       Task.Supervisor.async_nolink(Mast.TaskSupervisor, fn ->
         send(parent, :probe_detail_started)
-        SSH.run(server, detail_command(server, app_name))
+        SSH.run(server, detail_command(release, app_name))
       end)
 
     case Task.yield(task, @timeout_ms) || Task.shutdown(task, :brutal_kill) do
@@ -75,35 +79,43 @@ defmodule Mast.Apps.Probe.RpcExec do
         parse_detail(output)
 
       {:ok, {:error, reason}} ->
-        Logger.warning("AppProbe detail SSH failed for server=#{server.id}: #{inspect(reason)}")
+        Logger.warning("AppProbe detail SSH failed for release=#{release.id}: #{inspect(reason)}")
+
         {:error, friendly_error(reason)}
 
       {:exit, reason} ->
-        Logger.error("AppProbe detail crashed for server=#{server.id}: #{inspect(reason)}")
+        Logger.error("AppProbe detail crashed for release=#{release.id}: #{inspect(reason)}")
         {:error, "probe crashed: #{inspect(reason)}"}
 
       nil ->
-        Logger.warning("AppProbe detail timed out for server=#{server.id}")
+        Logger.warning("AppProbe detail timed out for release=#{release.id}")
         {:error, :timeout}
     end
   end
 
-  defp command(server) do
-    # Single-quote the expression so the remote shell passes it verbatim
-    # to `bin/<release> rpc`. The expression is hard-coded here and
-    # contains no operator input, so injection isn't a risk — but we still
-    # validate that release_command itself is an absolute path with no
-    # newlines (see Server.monitoring_changeset/2).
-    "#{server.release_command} rpc '#{expression()}'"
+  defp resolve(%Release{server: %Mast.Fleet.Server{} = s} = r), do: {s, r}
+
+  defp resolve(%Release{} = r) do
+    r = Repo.preload(r, :server)
+    {r.server, r}
   end
 
-  defp detail_command(server, app_name) do
+  defp command(release) do
+    # Single-quote the expression so the remote shell passes it verbatim
+    # to `bin/<release> rpc`. The expression is hard-coded here and
+    # contains no operator input, so injection isn't a risk — but the
+    # Release changeset already validates that release_command is an
+    # absolute path with no newlines.
+    "#{release.release_command} rpc '#{expression()}'"
+  end
+
+  defp detail_command(release, app_name) do
     # app_name is the atom name of an OTP application loaded on the remote
     # node. It comes from a row we previously inserted via probe/1, not from
     # operator input. Still, we sanitise to lowercase + underscore + digit
     # before interpolating — same charset as a valid OTP app name.
     safe = sanitize_app_name(app_name)
-    "#{server.release_command} rpc '#{detail_expression(safe)}'"
+    "#{release.release_command} rpc '#{detail_expression(safe)}'"
   end
 
   defp sanitize_app_name(name) when is_binary(name) do

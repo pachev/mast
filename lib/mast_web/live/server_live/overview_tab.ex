@@ -1,16 +1,18 @@
 defmodule MastWeb.ServerLive.OverviewTab do
   @moduledoc """
-  Overview tab for `MastWeb.ServerLive`: 4-up KPI row + Elixir Apps and
+  Overview tab for `MastWeb.ServerLive`: 4-up KPI row + Releases and
   Recent Activity cards.
   """
   use MastWeb, :html
 
   import MastWeb.ServerLive.Helpers
 
+  alias Mast.Fleet.Release
   alias MastWeb.Audit.Presenter
 
   attr :server, :map, required: true
   attr :apps, :list, required: true
+  attr :releases, :list, required: true
   attr :activity, :list, required: true
 
   def render(assigns) do
@@ -48,28 +50,30 @@ defmodule MastWeb.ServerLive.OverviewTab do
       <.ui_card>
         <:title>
           <.ui_card_title icon="hero-cube" color="purple">
-            Elixir Apps
-            <:meta>{overview_apps_meta(@apps, @server)}</:meta>
+            Elixir Releases
+            <:meta>{overview_releases_meta(@releases)}</:meta>
           </.ui_card_title>
         </:title>
 
         <%= cond do %>
-          <% @server.release_command in [nil, ""] -> %>
-            <.ui_empty
-              icon="hero-cog-6-tooth"
-              title="Not configured"
-              body="Set a release command in Settings to monitor apps on this host."
-            />
-          <% @apps == [] -> %>
+          <% @releases == [] -> %>
             <.ui_empty
               icon="hero-cube"
-              title="No apps observed yet"
-              body="Mast probes every 30 seconds. Apps will appear after the first successful probe."
+              title="No Releases configured"
+              body="Open the Releases tab to add one."
             />
           <% true -> %>
             <div class="space-y-2">
-              <.link :for={a <- user_apps_only(@apps)} navigate={~p"/apps/#{a.id}"} class="block">
-                <.ui_app_row name={a.name} meta={app_meta_line(a, @server)} status={a.status} />
+              <.link
+                :for={r <- @releases}
+                navigate={~p"/servers/#{@server.id}/releases/#{Release.effective_handle(r)}"}
+                class="block"
+              >
+                <.ui_app_row
+                  name={Release.effective_handle(r) || "—"}
+                  meta={release_meta(r)}
+                  status={release_status(r, @apps)}
+                />
               </.link>
             </div>
         <% end %>
@@ -172,12 +176,31 @@ defmodule MastWeb.ServerLive.OverviewTab do
   defp fmt_gb(n) when is_number(n), do: :erlang.float_to_binary(n * 1.0, decimals: 1)
   defp fmt_gb(_), do: "—"
 
-  defp overview_apps_meta(_, %{release_command: rc}) when rc in [nil, ""], do: "not configured"
-  defp overview_apps_meta([], _), do: "no apps yet"
+  defp overview_releases_meta([]), do: "none configured"
+  defp overview_releases_meta([_]), do: "1 configured"
+  defp overview_releases_meta(list), do: "#{length(list)} configured"
 
-  defp overview_apps_meta(apps, _) do
-    {user, _} = partition_apps(apps)
-    n = length(user)
-    "#{n} running"
+  defp release_meta(%Release{log_source: "none", release_command: nil}), do: "no probe · no logs"
+
+  defp release_meta(%Release{log_source: "none", release_command: rc}) when is_binary(rc),
+    do: "probe only"
+
+  defp release_meta(%Release{log_source: source, release_command: nil}),
+    do: "logs only · #{source}"
+
+  defp release_meta(%Release{log_source: source}), do: "probe + #{source} logs"
+
+  # The Release is "up" if its main App row (App.name == basename of
+  # release_command, AND App.release_id == release.id) is running.
+  defp release_status(%Release{id: release_id, release_command: rc}, apps)
+       when is_binary(rc) and rc != "" do
+    basename = Path.basename(rc)
+
+    case Enum.find(apps, &(&1.release_id == release_id and &1.name == basename)) do
+      nil -> "unknown"
+      main -> main.status
+    end
   end
+
+  defp release_status(_, _), do: "unknown"
 end
