@@ -191,7 +191,7 @@ defmodule MastWeb.ReleaseLive.View do
           >
             Waiting for output…
           </div>
-          <.ui_log_entry :for={line <- @log_buffer} kind={line.kind} time={line.time}>
+          <.ui_log_entry :for={line <- Enum.reverse(@log_buffer)} kind={line.kind} time={line.time}>
             {line.text}
           </.ui_log_entry>
         </div>
