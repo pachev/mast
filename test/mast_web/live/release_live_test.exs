@@ -20,7 +20,7 @@ defmodule MastWeb.ReleaseLiveTest do
   test "renders Overview tab by default", %{conn: conn, server: server} do
     {:ok, _view, html} = live(conn, ~p"/servers/#{server.id}/releases/hermes")
 
-    assert html =~ "Applications"
+    assert html =~ "No applications observed yet"
     assert html =~ "/opt/hermes/bin/hermes"
   end
 

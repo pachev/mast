@@ -17,7 +17,7 @@ defmodule MastWeb.AppLiveTest do
       })
 
     {:ok, [app]} =
-      Apps.upsert_from_probe(server, [
+      Apps.upsert_from_probe(release, [
         %{
           name: "hermes",
           node_name: "hermes@host",

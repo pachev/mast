@@ -381,7 +381,12 @@ defmodule MastWeb.ServerLive do
 
       <%= case @tab do %>
         <% "overview" -> %>
-          <OverviewTab.render server={@server} apps={@apps} activity={@activity} />
+          <OverviewTab.render
+            server={@server}
+            apps={@apps}
+            releases={@releases}
+            activity={@activity}
+          />
         <% "releases" -> %>
           <ReleasesTab.render
             server={@server}

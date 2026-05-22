@@ -47,7 +47,7 @@ defmodule Mast.Workers.AppProbe do
 
     case Apps.Probe.probe(release) do
       {:ok, observations} ->
-        {:ok, _apps} = Apps.upsert_from_probe(server, observations)
+        {:ok, _apps} = Apps.upsert_from_probe(release, observations)
         broadcast({:apps_updated, server.id})
         :ok
 

@@ -9,17 +9,18 @@ defmodule Mast.Apps do
   import Ecto.Query, warn: false
 
   alias Mast.Apps.Application
+  alias Mast.Fleet.Release
   alias Mast.Repo
 
   @doc "Lists every known application across the fleet, ordered by server then name."
   def list_applications do
     Application
     |> order_by([a], asc: a.name)
-    |> preload(:server)
+    |> preload([:server, :release])
     |> Repo.all()
   end
 
-  @doc "Lists applications attached to one server."
+  @doc "Lists applications attached to one server (across all its Releases)."
   def list_for_server(server_id) do
     Application
     |> where([a], a.server_id == ^server_id)
@@ -27,27 +28,40 @@ defmodule Mast.Apps do
     |> Repo.all()
   end
 
-  @doc "Fetches one application with its server preloaded."
+  @doc "Lists applications attached to one Release."
+  def list_for_release(%Release{id: id}), do: list_for_release(id)
+
+  def list_for_release(release_id) when is_integer(release_id) do
+    Application
+    |> where([a], a.release_id == ^release_id)
+    |> order_by([a], asc: a.name)
+    |> Repo.all()
+  end
+
+  @doc "Fetches one application with its server + release preloaded."
   def get_app!(id) do
     Application
-    |> preload(:server)
+    |> preload([:server, :release])
     |> Repo.get!(id)
   end
 
   @doc """
-  Reconciles the live probe result for one server against the DB. Inserts
-  new rows, updates known rows, and marks now-missing apps `unreachable`.
+  Reconciles a probe result for one Release against the DB. Inserts new
+  rows, updates known rows, and marks now-missing apps `unreachable` —
+  scoped to this Release only so two Releases on one Server don't
+  clobber each other's `logger`, `stdlib`, etc.
   """
-  def upsert_from_probe(server, observations) when is_list(observations) do
+  def upsert_from_probe(%Release{} = release, observations) when is_list(observations) do
     now = DateTime.utc_now()
-    existing = list_for_server(server.id)
+    existing = list_for_release(release.id)
     existing_by_name = Map.new(existing, &{&1.name, &1})
 
     seen_names =
       Enum.map(observations, fn obs ->
         attrs =
           obs
-          |> Map.put(:server_id, server.id)
+          |> Map.put(:server_id, release.server_id)
+          |> Map.put(:release_id, release.id)
           |> Map.put(:last_seen_at, now)
           |> Map.put(:last_probe, Map.new(obs, fn {k, v} -> {to_string(k), v} end))
 
@@ -66,8 +80,6 @@ defmodule Mast.Apps do
         attrs[:name] || attrs["name"]
       end)
 
-    # Mark apps that disappeared as unreachable rather than deleting them,
-    # so the UI can show "was here, isn't now" history.
     stale_ids =
       existing
       |> Enum.reject(&(&1.name in seen_names))
@@ -79,6 +91,6 @@ defmodule Mast.Apps do
       |> Repo.update_all(set: [status: "unreachable", updated_at: now])
     end
 
-    {:ok, list_for_server(server.id)}
+    {:ok, list_for_release(release.id)}
   end
 end

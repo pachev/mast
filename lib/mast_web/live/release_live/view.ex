@@ -7,7 +7,7 @@ defmodule MastWeb.ReleaseLive.View do
   """
   use MastWeb, :html
 
-  import MastWeb.ServerLive.Helpers, only: [format_uptime_short: 1]
+  import MastWeb.ServerLive.Helpers, only: [partition_apps: 1]
 
   alias Mast.Fleet.Release
 
@@ -36,10 +36,17 @@ defmodule MastWeb.ReleaseLive.View do
             </.link>
             <span class="text-[var(--mast-font-tertiary)]">/</span>
             <.link
-              navigate={~p"/servers/#{@server.id}?tab=releases"}
+              navigate={~p"/servers/#{@server.id}?tab=overview"}
               class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]"
             >
               {@server.name}
+            </.link>
+            <span class="text-[var(--mast-font-tertiary)]">/</span>
+            <.link
+              navigate={~p"/servers/#{@server.id}?tab=releases"}
+              class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-font-primary)]"
+            >
+              Releases
             </.link>
             <span class="text-[var(--mast-font-tertiary)]">/</span>
             <span class="text-[var(--mast-font-primary)] font-medium">{@handle}</span>
@@ -91,48 +98,109 @@ defmodule MastWeb.ReleaseLive.View do
   # ---- Overview ----------------------------------------------------------
 
   defp overview_tab(assigns) do
-    ~H"""
-    <section>
-      <div class="mb-4">
-        <.ui_card_title icon="hero-cube">Applications</.ui_card_title>
-      </div>
+    main = main_release_app(assigns.release, assigns.apps)
+    deps = Enum.reject(assigns.apps, &(main && &1.id == main.id))
+    {user_deps, system_deps} = partition_apps(deps)
 
-      <div :if={@release.release_command in [nil, ""]} class="mb-4">
+    assigns =
+      assigns
+      |> assign(:main, main)
+      |> assign(:user_deps, user_deps)
+      |> assign(:system_deps, system_deps)
+
+    ~H"""
+    <section class="space-y-6">
+      <div :if={@release.release_command in [nil, ""]}>
         <.ui_empty
           icon="hero-information-circle"
           title="Probe not configured"
-          body="This Release has no release_command set, so Mast cannot run `bin/<release> rpc` to read its applications."
+          body="This Release has no release_command set, so Mast cannot run bin/<release> rpc to read its applications."
         />
       </div>
 
-      <div
-        :if={@release.release_command not in [nil, ""] and @apps == []}
-        class="mb-4"
-      >
+      <div :if={@release.release_command not in [nil, ""] and @apps == []}>
         <.ui_empty
           icon="hero-signal-slash"
           title="No applications observed yet"
-          body="The probe has not produced any observations on this Server. Run a probe from the Server overview."
+          body="The probe has not produced any observations for this Release. Click Probe All on the Server's Releases tab."
         />
       </div>
 
-      <div :if={@apps != []} class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <.link
-          :for={app <- @apps}
-          navigate={~p"/apps/#{app.id}"}
-          class="block"
-        >
-          <.ui_app_card
-            name={app.name}
-            version={app.version}
-            status={app.status}
-            uptime={format_uptime_short(app.uptime_seconds)}
+      <section :if={@main}>
+        <div class="mb-3">
+          <.ui_card_title icon="hero-cube" color="purple">Main Release</.ui_card_title>
+        </div>
+        <.link navigate={~p"/apps/#{@main.id}"} class="block">
+          <.ui_release_card
+            name={@main.name}
+            version={@main.version}
+            node_name={@main.node_name}
+            status={@main.status}
+            memory_mb={@main.memory_mb}
+            processes={@main.processes}
+            msg_queue={@main.msg_queue}
+            uptime_seconds={@main.uptime_seconds}
+            otp_release={@main.otp_release}
           />
         </.link>
-      </div>
+      </section>
+
+      <section :if={@user_deps != [] or @system_deps != []}>
+        <div class="mb-3">
+          <.ui_card_title icon="hero-cube-transparent" color="blue">
+            Dependencies
+            <:meta>
+              {length(@user_deps) + length(@system_deps)} OTP applications
+            </:meta>
+          </.ui_card_title>
+        </div>
+
+        <div class="bg-[var(--mast-bg-card)] border border-[var(--mast-border)] rounded-[var(--radius-box)] p-4 space-y-3">
+          <div :if={@user_deps != []}>
+            <p class="text-[12px] font-medium text-[var(--mast-font-secondary)] mb-2">
+              Project dependencies
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <.link
+                :for={dep <- @user_deps}
+                navigate={~p"/apps/#{dep.id}"}
+              >
+                <.ui_chip status={dep.status}>{dep.name}</.ui_chip>
+              </.link>
+            </div>
+          </div>
+
+          <div :if={@system_deps != []}>
+            <p class="text-[12px] font-medium text-[var(--mast-font-secondary)] mb-2 mt-3">
+              OTP / stdlib
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <.link
+                :for={dep <- @system_deps}
+                navigate={~p"/apps/#{dep.id}"}
+              >
+                <.ui_chip status={dep.status}>{dep.name}</.ui_chip>
+              </.link>
+            </div>
+          </div>
+        </div>
+      </section>
     </section>
     """
   end
+
+  # The "main" app for a Release is the OTP application whose name matches
+  # the basename of `release_command` (e.g. /opt/hermes-toy/bin/hermes_toy
+  # -> "hermes_toy"). The Release's display name/handle may differ from
+  # the OTP app name (operator chose "toy"; the mix project shipped
+  # :hermes_toy), so don't match on handle.
+  defp main_release_app(%Release{release_command: rc}, apps)
+       when is_binary(rc) and rc != "" do
+    basename = Path.basename(rc)
+    Enum.find(apps, &(&1.name == basename))
+  end
+
+  defp main_release_app(_, _), do: nil
 
   # ---- Logs --------------------------------------------------------------
 

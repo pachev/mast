@@ -24,6 +24,7 @@ defmodule Mast.Apps.Application do
     field :last_probe, :map
 
     belongs_to :server, Mast.Fleet.Server
+    belongs_to :release, Mast.Fleet.Release
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -33,6 +34,7 @@ defmodule Mast.Apps.Application do
     app
     |> cast(attrs, [
       :server_id,
+      :release_id,
       :name,
       :node_name,
       :version,
@@ -45,9 +47,9 @@ defmodule Mast.Apps.Application do
       :last_seen_at,
       :last_probe
     ])
-    |> validate_required([:server_id, :name, :node_name, :status])
+    |> validate_required([:server_id, :release_id, :name, :node_name, :status])
     |> validate_inclusion(:status, @statuses)
-    |> unique_constraint([:server_id, :name])
+    |> unique_constraint([:release_id, :name])
   end
 
   def statuses, do: @statuses

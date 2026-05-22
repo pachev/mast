@@ -38,7 +38,7 @@ defmodule MastWeb.ReleaseLive do
 
       %Release{} = release ->
         tab = Map.get(params, "tab", "overview")
-        apps = Apps.list_for_server(server.id)
+        apps = Apps.list_for_release(release)
 
         {:ok,
          socket
@@ -105,7 +105,7 @@ defmodule MastWeb.ReleaseLive do
   @impl true
   def handle_info({:apps_updated, server_id}, socket) do
     if server_id == socket.assigns.server.id do
-      {:noreply, assign(socket, :apps, Apps.list_for_server(server_id))}
+      {:noreply, assign(socket, :apps, Apps.list_for_release(socket.assigns.release))}
     else
       {:noreply, socket}
     end

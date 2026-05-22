@@ -25,7 +25,7 @@ defmodule Mast.Apps.ProbeDetailTest do
         release_command: "/opt/hermes/bin/hermes"
       })
 
-    Apps.upsert_from_probe(server, [
+    Apps.upsert_from_probe(release, [
       %{name: "hermes", node_name: "h@h", status: "running"}
     ])
 
