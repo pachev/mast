@@ -1,12 +1,12 @@
 defmodule Mast.Workers.AppProbe do
   @moduledoc """
-  Probes one server for its running Elixir applications. Mirrors
-  `ConnectionCheck` in shape: single-server entry, fan-out entry, broadcasts
-  on the "servers" PubSub topic.
+  Probes one Release for its running Elixir applications.
 
-  Skips servers with no `release_command`.
+  Fan-out enumerates every Release across the fleet with a non-empty
+  `release_command` and enqueues one job per Release.
 
-  See ADR 0004 (revised) for the transport choice.
+  See ADR 0004 (revised) for the transport choice and ADR 0008 for the
+  move from per-Server to per-Release probing.
   """
   use Oban.Worker,
     queue: :checks,
@@ -15,24 +15,37 @@ defmodule Mast.Workers.AppProbe do
 
   require Logger
 
-  alias Mast.{Apps, Fleet}
+  alias Mast.Apps
+  alias Mast.Fleet
+  alias Mast.Fleet.Release
+  alias Mast.Repo
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"all" => true}}) do
-    Enum.each(Fleet.list_servers(), fn s ->
-      if s.release_command && s.release_command != "" do
-        __MODULE__.new(%{server_id: s.id}) |> Oban.insert!()
-      end
+    Enum.each(Fleet.list_servers(), fn server ->
+      server
+      |> Fleet.list_releases()
+      |> Enum.each(fn release ->
+        if release.release_command && release.release_command != "" do
+          __MODULE__.new(%{release_id: release.id}) |> Oban.insert!()
+        end
+      end)
     end)
 
     :ok
   end
 
-  def perform(%Oban.Job{args: %{"server_id" => server_id}}) do
-    server = Fleet.get_server!(server_id)
-    Logger.metadata(server_id: server.id, private_key_id: server.private_key_id)
+  def perform(%Oban.Job{args: %{"release_id" => release_id}}) do
+    release = Repo.preload(Fleet.get_release!(release_id), :server)
+    server = release.server
 
-    case Apps.Probe.probe(server) do
+    Logger.metadata(
+      release_id: release.id,
+      server_id: server.id,
+      private_key_id: server.private_key_id
+    )
+
+    case Apps.Probe.probe(release) do
       {:ok, observations} ->
         {:ok, _apps} = Apps.upsert_from_probe(server, observations)
         broadcast({:apps_updated, server.id})
@@ -40,10 +53,24 @@ defmodule Mast.Workers.AppProbe do
 
       {:error, reason} ->
         broadcast({:apps_probe_failed, server.id, reason})
-        # Don't kill the job; the next tick will retry.
         :ok
     end
   end
+
+  # Legacy entry point for any caller still passing server_id. Resolves
+  # the Server's first Release with release_command set and forwards.
+  # Remove once all schedulers are on the release_id path.
+  def perform(%Oban.Job{args: %{"server_id" => server_id}}) do
+    server = Fleet.get_server!(server_id)
+
+    case Fleet.list_releases(server) |> Enum.find(&runnable?/1) do
+      nil -> :ok
+      %Release{} = release -> perform(%Oban.Job{args: %{"release_id" => release.id}})
+    end
+  end
+
+  defp runnable?(%Release{release_command: rc}) when is_binary(rc) and rc != "", do: true
+  defp runnable?(_), do: false
 
   defp broadcast(msg), do: Phoenix.PubSub.broadcast(Mast.PubSub, "servers", msg)
 end

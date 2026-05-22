@@ -9,7 +9,12 @@ defmodule MastWeb.AppLiveTest do
   setup do
     Stub.reset()
     {:ok, server} = Fleet.create_server(%{name: "hermes", host: "10.0.0.1"})
-    {:ok, server} = Fleet.update_monitoring(server, %{release_command: "/opt/hermes/bin/hermes"})
+
+    {:ok, release} =
+      Fleet.create_release(%{
+        server_id: server.id,
+        release_command: "/opt/hermes/bin/hermes"
+      })
 
     {:ok, [app]} =
       Apps.upsert_from_probe(server, [
@@ -26,12 +31,12 @@ defmodule MastWeb.AppLiveTest do
         }
       ])
 
-    {:ok, server: server, app: app}
+    {:ok, server: server, release: release, app: app}
   end
 
   test "renders scalar stats + fallback banner when observer_backend is unavailable",
-       %{conn: conn, server: server, app: app} do
-    Stub.plant_detail(server, app.name, {:error, :observer_backend_unavailable})
+       %{conn: conn, release: release, app: app} do
+    Stub.plant_detail(release, app.name, {:error, :observer_backend_unavailable})
 
     {:ok, _view, html} = live(conn, ~p"/apps/#{app.id}")
 
@@ -49,8 +54,8 @@ defmodule MastWeb.AppLiveTest do
   end
 
   test "renders observer sections when detail probe succeeds",
-       %{conn: conn, server: server, app: app} do
-    Stub.plant_detail(server, app.name, {
+       %{conn: conn, release: release, app: app} do
+    Stub.plant_detail(release, app.name, {
       :ok,
       %{
         sys_info: %{

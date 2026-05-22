@@ -7,6 +7,8 @@ defmodule MastWeb.AppLive do
 
   alias Mast.Apps
   alias Mast.Apps.Probe
+  alias Mast.Fleet
+  alias Mast.Fleet.Release
   alias Mast.Workers.AppProbe
   alias MastWeb.AppLive.View
 
@@ -29,12 +31,26 @@ defmodule MastWeb.AppLive do
   end
 
   defp fetch_detail(app) do
-    case Probe.probe_detail(app.server, app.name) do
-      {:ok, detail} -> {detail, nil}
-      {:error, reason} -> {nil, reason}
+    case release_for(app) do
+      nil ->
+        {nil, :release_command_not_set}
+
+      %Release{} = release ->
+        case Probe.probe_detail(release, app.name) do
+          {:ok, detail} -> {detail, nil}
+          {:error, reason} -> {nil, reason}
+        end
     end
   rescue
     _ -> {nil, :probe_crashed}
+  end
+
+  defp release_for(app) do
+    app.server
+    |> Fleet.list_releases()
+    |> Enum.find(fn r ->
+      is_binary(r.release_command) and r.release_command != ""
+    end)
   end
 
   @impl true
