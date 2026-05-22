@@ -153,10 +153,14 @@ _Avoid_: log driver, log handler
 - "user" vs "operator" vs "admin" — resolved: **Operator** until a real
   account model exists; **Actor** is the audit-log field that holds
   Operator (future) or System (today).
-- "app" vs "release" — resolved: **Release** is canonical. The old
-  `MastWeb.AppLive` and the "Apps" tab on ServerLive both rename in
-  ADR 0008. `release_command` stays as a field name because it points
-  at `bin/<release>` and renaming it is churn for no clarity gain.
+- "app" vs "release" — resolved: **Release** is canonical at the
+  configuration layer (one row per Release in the `releases` table). At
+  runtime, every Release contains many **Applications** (OTP apps loaded
+  in the BEAM). ServerLive's primary tab is "Releases" and links to
+  `MastWeb.ReleaseLive`. `MastWeb.AppLive` remains as the per-Application
+  drill-in page (`/apps/:id`). `release_command` stays as a field name
+  because it points at `bin/<release>` and renaming it is churn for no
+  clarity gain.
 
 </content>
 </invoke>

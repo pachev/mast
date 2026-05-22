@@ -20,6 +20,7 @@ defmodule MastWeb.Router do
     live "/", DashboardLive, :index
     live "/servers/new", DashboardLive, :new
     live "/servers/:id", ServerLive, :show
+    live "/servers/:server_id/releases/:name", ReleaseLive, :show
     live "/apps/:id", AppLive, :show
     live "/alerts", AlertsLive, :index
     live "/audit", AuditLive, :index
