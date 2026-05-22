@@ -30,9 +30,10 @@ defmodule Mast.Repo.Migrations.CreateReleasesAndBackfill do
 
     servers =
       Mast.Repo.all(
-        from s in "servers",
+        from(s in "servers",
           where: not is_nil(s.release_command) and s.release_command != "",
           select: %{id: s.id, release_command: s.release_command}
+        )
       )
 
     Enum.each(servers, fn %{id: server_id, release_command: rc} ->
@@ -65,5 +66,4 @@ defmodule Mast.Repo.Migrations.CreateReleasesAndBackfill do
       ])
     end)
   end
-
 end
