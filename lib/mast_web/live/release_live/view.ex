@@ -130,7 +130,7 @@ defmodule MastWeb.ReleaseLive.View do
         <div class="mb-3">
           <.ui_card_title icon="hero-cube" color="purple">Main Release</.ui_card_title>
         </div>
-        <.link navigate={~p"/apps/#{@main.id}"} class="block">
+        <.link navigate={app_path(@server, @release, @main)} class="block">
           <.ui_release_card
             name={@main.name}
             version={@main.version}
@@ -163,7 +163,7 @@ defmodule MastWeb.ReleaseLive.View do
             <div class="flex flex-wrap gap-2">
               <.link
                 :for={dep <- @user_deps}
-                navigate={~p"/apps/#{dep.id}"}
+                navigate={app_path(@server, @release, dep)}
               >
                 <.ui_chip status={dep.status}>{dep.name}</.ui_chip>
               </.link>
@@ -177,7 +177,7 @@ defmodule MastWeb.ReleaseLive.View do
             <div class="flex flex-wrap gap-2">
               <.link
                 :for={dep <- @system_deps}
-                navigate={~p"/apps/#{dep.id}"}
+                navigate={app_path(@server, @release, dep)}
               >
                 <.ui_chip status={dep.status}>{dep.name}</.ui_chip>
               </.link>
@@ -187,6 +187,11 @@ defmodule MastWeb.ReleaseLive.View do
       </section>
     </section>
     """
+  end
+
+  defp app_path(server, %Release{} = release, app) do
+    handle = Release.effective_handle(release)
+    ~p"/servers/#{server.id}/releases/#{handle}/apps/#{app.name}"
   end
 
   # The "main" app for a Release is the OTP application whose name matches

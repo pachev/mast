@@ -1,6 +1,6 @@
-defmodule MastWeb.AppLive.View do
+defmodule MastWeb.ApplicationLive.View do
   @moduledoc """
-  Render template + display helpers for `MastWeb.AppLive`.
+  Render template + display helpers for `MastWeb.ApplicationLive`.
 
   Kept out of the LiveView module itself so neither file balloons. The
   LiveView owns state + event handlers; this owns markup + formatters.
@@ -62,7 +62,7 @@ defmodule MastWeb.AppLive.View do
         <:row label="Version">{@app.version || "—"}</:row>
         <:row label="Uptime">{format_uptime_long(@app.uptime_seconds)}</:row>
         <:row label="OTP Release">{@app.otp_release || "—"}</:row>
-        <:row label="Release Path">{release_path(@server)}</:row>
+        <:row label="Release Path">{release_path(@release)}</:row>
       </.ui_kv_table>
 
       <.observer_fallback_banner :if={@detail_error == :observer_backend_unavailable} />

@@ -1,4 +1,4 @@
-defmodule MastWeb.AppLiveTest do
+defmodule MastWeb.ApplicationLiveTest do
   use MastWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -35,10 +35,10 @@ defmodule MastWeb.AppLiveTest do
   end
 
   test "renders scalar stats + fallback banner when observer_backend is unavailable",
-       %{conn: conn, release: release, app: app} do
+       %{conn: conn, server: server, release: release, app: app} do
     Stub.plant_detail(release, app.name, {:error, :observer_backend_unavailable})
 
-    {:ok, _view, html} = live(conn, ~p"/apps/#{app.id}")
+    {:ok, _view, html} = live(conn, ~p"/servers/#{server.id}/releases/hermes/apps/#{app.name}")
 
     # Existing scalar stats still render.
     assert html =~ "106.0 MB"
@@ -54,7 +54,7 @@ defmodule MastWeb.AppLiveTest do
   end
 
   test "renders observer sections when detail probe succeeds",
-       %{conn: conn, release: release, app: app} do
+       %{conn: conn, server: server, release: release, app: app} do
     Stub.plant_detail(release, app.name, {
       :ok,
       %{
@@ -111,7 +111,7 @@ defmodule MastWeb.AppLiveTest do
       }
     })
 
-    {:ok, _view, html} = live(conn, ~p"/apps/#{app.id}")
+    {:ok, _view, html} = live(conn, ~p"/servers/#{server.id}/releases/hermes/apps/#{app.name}")
 
     assert html =~ "System snapshot"
     assert html =~ "Supervision tree"
