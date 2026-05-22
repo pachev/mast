@@ -69,7 +69,6 @@ defmodule MastWeb.ServerLive.Header do
       <.ui_tabs active={@tab} class="mt-4 border-b-0">
         <:tab key="overview" patch={~p"/servers/#{@server.id}?tab=overview"}>Overview</:tab>
         <:tab key="releases" patch={~p"/servers/#{@server.id}?tab=releases"}>Releases</:tab>
-        <:tab key="logs" patch={~p"/servers/#{@server.id}?tab=logs"}>Logs</:tab>
         <:tab
           key="updates"
           patch={~p"/servers/#{@server.id}?tab=updates"}

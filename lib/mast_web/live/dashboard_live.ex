@@ -245,12 +245,6 @@ defmodule MastWeb.DashboardLive do
             options={Enum.map(@keys, &{key_label(&1), &1.id})}
           />
 
-          <.input
-            field={@form[:release_command]}
-            label="Release command (optional)"
-            placeholder="/opt/app/bin/app"
-          />
-
           <button
             type="button"
             phx-click="toggle_new_key"

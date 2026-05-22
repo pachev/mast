@@ -4,7 +4,7 @@ defmodule Mast.Apps do
 
   Persistence is a snapshot only: rows are written by `Mast.Workers.AppProbe`
   and read by the dashboard. Live values (memory, uptime) are refreshed on
-  demand from `MastWeb.AppLive`. See ADR 0004.
+  demand from `MastWeb.ApplicationLive`. See ADR 0004 and ADR 0008.
   """
   import Ecto.Query, warn: false
 

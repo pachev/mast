@@ -105,16 +105,6 @@ defmodule Mast.Fleet do
     |> Repo.update()
   end
 
-  @doc """
-  Updates app-monitoring config on the server (release_command). See
-  ADR 0004 (revised).
-  """
-  def update_monitoring(%Server{} = s, attrs) do
-    s
-    |> Server.monitoring_changeset(attrs)
-    |> Repo.update()
-  end
-
   # --- Releases --------------------------------------------------------
 
   @doc "Lists Releases on a Server, ordered by effective handle."
