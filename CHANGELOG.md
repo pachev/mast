@@ -7,6 +7,23 @@ follows [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Releases are now a first-class entity. Each Server hosts zero or
+  more Releases, each with its own `release_command` and Log Source
+  config. Adds a `releases` table, per-Release probes, per-Release
+  Application ownership (`applications.release_id`), and a new
+  `MastWeb.ReleaseLive` at `/servers/:id/releases/:name` with
+  Overview / Logs / Settings sub-tabs (ADR 0008, issue #6).
+- Live log streaming on the per-Release Logs tab. `Mast.Logs.Source`
+  behaviour with `systemd` (`journalctl -u <unit> -f`) and `file`
+  (`tail -n 200 -F`) adapters. Stream feeds a 1000-line ring buffer
+  on the LiveView; `Mast.Logs.Janitor` cleans up orphaned remote
+  processes when a LiveView dies abnormally.
+- Per-Release "Probe Now" button on ReleaseLive for targeted refresh.
+  Server-level "Probe All" still fans out across every Release on the
+  Server.
+- ServerLive "Releases" tab with add/remove flow, replacing the old
+  per-server Apps tab. ServerLive Overview swaps the Apps card for a
+  Releases card with per-Release status derived from each main app.
 - Observer-style per-app detail on AppLive: system snapshot
   (scheduler utilization, atom/port/process/ets counts, memory by
   category), collapsible supervision tree capped at depth 3, and
@@ -18,12 +35,31 @@ follows [SemVer](https://semver.org/).
   pointing at the README instead of erroring.
 
 ### Changed
+- `MastWeb.AppLive` renamed to `MastWeb.ApplicationLive` and nested
+  under Server + Release at
+  `/servers/:server_id/releases/:name/apps/:app_name`. Breadcrumb
+  reflects the full hierarchy.
+- Per-Application rows now belong to a Release (`applications.release_id`,
+  unique on `(release_id, name)`), so two Releases on one Server can
+  each have their own `logger`, `stdlib`, etc. without colliding.
 - AppLive: removed the "Memory over time" placeholder card. The real
   chart lands when application sampling exists (issue #15).
 - README: documents the `extra_applications: [:runtime_tools]`
-  requirement and the graceful-fallback behaviour.
+  requirement and the graceful-fallback behaviour. New section
+  documents the sudoers NOPASSWD entries Mast needs for journalctl
+  and tail.
 - ADR 0004: records the `:observer_backend` probe expression and its
   view-scoped invocation (mount + Refresh, not the 30s worker).
+
+### Removed
+- `servers.release_command` column and the App Monitoring card on
+  ServerLive's Settings tab. Release-level config lives on
+  ReleaseLive's Settings now.
+- Server-level "Logs" tab. The patch-apply run log streaming
+  infrastructure is still in place and will surface inline under the
+  Updates tab in a follow-up. Per-Release Logs (ADR 0008) are the
+  canonical Logs view.
+- Old `/apps/:id` route.
 
 ## [0.5.0] - 2026-05-22
 
