@@ -7,17 +7,9 @@ import Config
 # before starting your production server.
 config :mast, MastWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
 
-# Force using SSL in production. This also sets the "strict-security-transport" header,
-# known as HSTS. If you have a health check endpoint, you may want to exclude it below.
-# Note `:force_ssl` is required to be set at compile-time.
-config :mast, MastWeb.Endpoint,
-  force_ssl: [
-    rewrite_on: [:x_forwarded_proto],
-    exclude: [
-      # paths: ["/health"],
-      hosts: ["localhost", "127.0.0.1"]
-    ]
-  ]
+# HTTPS is the responsibility of the reverse proxy in front of Mast, not the
+# app itself. Operators terminating TLS at a proxy should add HSTS there and
+# set `MAST_HTTPS=true` so generated URLs use the https scheme.
 
 # Do not print debug messages in production
 config :logger, level: :info

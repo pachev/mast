@@ -20,7 +20,7 @@ if System.get_env("PHX_SERVER") do
   config :mast, MastWeb.Endpoint, server: true
 end
 
-config :mast, MastWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4005"))]
+config :mast, MastWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
   database_url =
@@ -72,16 +72,25 @@ if config_env() == :prod do
     ]
 
   host = System.get_env("PHX_HOST") || "example.com"
+  port = String.to_integer(System.get_env("PORT", "4000"))
+
+  # Plain-HTTP by default (homelab, behind a private network). Set
+  # MAST_HTTPS=true when a reverse proxy in front terminates TLS so that
+  # generated URLs use https and the default URL port matches.
+  https? = System.get_env("MAST_HTTPS") in ~w(1 true yes)
+  url_scheme = if https?, do: "https", else: "http"
+  url_port = if https?, do: 443, else: port
 
   config :mast, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :mast, MastWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: host, port: url_port, scheme: url_scheme],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
+      port: port,
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
     secret_key_base: secret_key_base

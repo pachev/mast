@@ -57,3 +57,40 @@ run = "mix ecto.migrate"
 description = "Drop, create, migrate, seed"
 depends = ["db:start"]
 run = "mix ecto.reset"
+
+# ---- Production release ----
+#
+# `mise run release` builds a self-contained release at
+# _build/prod/rel/mast. Run on the target host (or matching arch).
+#
+# Then on the host:
+#   _build/prod/rel/mast/bin/mast eval 'Mast.Release.migrate()'
+#   _build/prod/rel/mast/bin/mast start
+
+[tasks."release:deps"]
+description = "Fetch prod-only deps"
+env = { MIX_ENV = "prod" }
+run = "mix deps.get --only prod"
+
+[tasks."release:compile"]
+description = "Compile in prod env"
+depends = ["release:deps"]
+env = { MIX_ENV = "prod" }
+run = "mix compile"
+
+[tasks."release:assets"]
+description = "Build and digest assets"
+depends = ["release:compile"]
+env = { MIX_ENV = "prod" }
+run = "mix assets.setup && mix assets.deploy"
+
+[tasks.release]
+description = "Build a production release"
+depends = ["release:assets"]
+env = { MIX_ENV = "prod" }
+run = "mix release --overwrite"
+
+[tasks."release:migrate"]
+description = "Run migrations against the built release (requires env vars)"
+env = { MIX_ENV = "prod" }
+run = "_build/prod/rel/mast/bin/mast eval 'Mast.Release.migrate()'"

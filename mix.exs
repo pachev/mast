@@ -87,6 +87,7 @@ defmodule Mast.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind mast", "esbuild mast"],
       "assets.deploy": [
+        "compile",
         "tailwind mast --minify",
         "esbuild mast --minify",
         "phx.digest"
