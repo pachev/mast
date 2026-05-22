@@ -79,7 +79,7 @@ defmodule MastWeb.ReleaseLive.View do
         </.ui_tabs>
       </header>
 
-      <.overview_tab :if={@tab == "overview"} apps={@apps} release={@release} />
+      <.overview_tab :if={@tab == "overview"} server={@server} apps={@apps} release={@release} />
       <.logs_tab
         :if={@tab == "logs"}
         release={@release}
