@@ -17,8 +17,30 @@ _Avoid_: host, box, node, machine
 
 **Release**:
 A mix-built Elixir application running on a Server, addressable via its
-`bin/<release> rpc` script.
+`bin/<release> rpc` script. A Release today assumes a host-installed mix
+release; containerized deployments are out of scope until a future ADR
+adds them.
 _Avoid_: app, application, service
+
+**Release Name**:
+The handle an Operator uses to refer to a Release within its Server. If
+the Operator leaves it unset, it derives from the basename of
+`release_command`. Must be unique within its Server.
+_Avoid_: release id, app name, slug
+
+**Log Source**:
+The kind of log stream a Release exposes. One of `:systemd` (a unit
+read via `journalctl`), `:file` (a single absolute path read via
+`tail -F`), or `:none`. Config-only — not its own entity, not its own
+table. If a Release ever needed multiple streams, this would graduate
+to a noun; today it does not.
+_Avoid_: log driver, log backend, log channel
+
+**Log Target**:
+The address inside a Log Source — a systemd unit name for `:systemd`,
+an absolute file path for `:file`. Validated per Log Source by the
+adapter that knows the shape.
+_Avoid_: log path (misleading for systemd), log locator
 
 **Patch**:
 An available apt package upgrade on a Server — one row per upgradable
@@ -76,9 +98,18 @@ impl today; future impls (e.g. disterl to an in-cluster agent) plug in
 behind the same callback.
 _Avoid_: SSH (when referring to the abstraction), runner, transport
 
+**Log Source Adapter**:
+A module implementing the `Mast.Logs.Source` behaviour. Knows two
+things and only two things: how to build the streaming command for its
+Log Source kind, and how to validate a Log Target. The SSH machinery
+that actually runs the command lives in the Executor. One adapter per
+Log Source value (`Mast.Logs.Systemd`, `Mast.Logs.File`).
+_Avoid_: log driver, log handler
+
 ## Relationships
 
 - A **Server** hosts zero or more **Releases**
+- A **Release** has exactly one **Log Source** (defaults to `:none`)
 - A **Scan** of a **Server** produces zero or more **Patches**
 - An **Apply** on a **Server** consumes one or more **Patches**
 - A **Server** has at most one **Private Key** (v0.4)
@@ -101,6 +132,16 @@ _Avoid_: SSH (when referring to the abstraction), runner, transport
 > **PJ:** "Yes — many Servers, one Private Key. But a Server has at most one
 > Private Key in v0.4."
 
+> **Dev:** "If a **Release**'s **Log Source** is `:none`, what shows in the
+> Logs tab?"
+> **PJ:** "An empty state pointing at the Release's Settings tab. We never
+> open an SSH stream for a Release that hasn't told us where to look."
+
+> **Dev:** "Two **Releases** on the same **Server** with the same derived
+> name — what wins?"
+> **PJ:** "Neither. The Operator has to set an explicit **Release Name** on
+> at least one. Uniqueness is enforced at the changeset level."
+
 ## Flagged ambiguities
 
 - "key" was used for both **Private Key** (the SSH PEM) and **Vault Key**
@@ -112,6 +153,10 @@ _Avoid_: SSH (when referring to the abstraction), runner, transport
 - "user" vs "operator" vs "admin" — resolved: **Operator** until a real
   account model exists; **Actor** is the audit-log field that holds
   Operator (future) or System (today).
+- "app" vs "release" — resolved: **Release** is canonical. The old
+  `MastWeb.AppLive` and the "Apps" tab on ServerLive both rename in
+  ADR 0008. `release_command` stays as a field name because it points
+  at `bin/<release>` and renaming it is churn for no clarity gain.
 
 </content>
 </invoke>

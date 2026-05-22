@@ -8,6 +8,8 @@
 | 0004 | [Elixir-native monitoring](0004-elixir-native-monitoring.md) | Proposed (v0.4) |
 | 0005 | [No host-side agent](0005-no-host-agent.md) | Accepted |
 | 0006 | [SSH key storage and encryption](0006-ssh-key-storage.md) | Accepted |
+| 0007 | [Audit log from day one](0007-audit-log.md) | Accepted |
+| 0008 | [Releases as first-class, with per-Release Log Source](0008-releases-and-log-source.md) | Accepted |
 
 New ADRs: copy an existing file, bump the number, fill in Context / Decision /
 Consequences. Keep them under one page.
