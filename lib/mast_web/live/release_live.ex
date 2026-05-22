@@ -16,6 +16,7 @@ defmodule MastWeb.ReleaseLive do
   alias Mast.Fleet.Release
   alias Mast.Logs
   alias Mast.Logs.Janitor
+  alias Mast.Workers.AppProbe
   alias MastWeb.ReleaseLive.View
 
   @max_log_lines 1000
@@ -51,7 +52,9 @@ defmodule MastWeb.ReleaseLive do
          |> assign(:settings_changeset, Fleet.change_release(release))
          |> assign(:log_buffer, [])
          |> assign(:log_streaming?, false)
-         |> assign(:log_status, :idle)}
+         |> assign(:log_status, :idle)
+         |> assign(:probing?, false)
+         |> assign(:probe_error, nil)}
     end
   end
 
@@ -102,10 +105,49 @@ defmodule MastWeb.ReleaseLive do
     {:noreply, assign(socket, :log_buffer, [])}
   end
 
+  def handle_event("probe-release", _, socket) do
+    release = socket.assigns.release
+
+    cond do
+      release.release_command in [nil, ""] ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "This Release has no release_command — set one in Settings to enable probing."
+         )}
+
+      true ->
+        %{release_id: release.id}
+        |> AppProbe.new()
+        |> Oban.insert!()
+
+        {:noreply,
+         socket
+         |> assign(:probing?, true)
+         |> assign(:probe_error, nil)}
+    end
+  end
+
   @impl true
   def handle_info({:apps_updated, server_id}, socket) do
     if server_id == socket.assigns.server.id do
-      {:noreply, assign(socket, :apps, Apps.list_for_release(socket.assigns.release))}
+      {:noreply,
+       socket
+       |> assign(:apps, Apps.list_for_release(socket.assigns.release))
+       |> assign(:probing?, false)
+       |> assign(:probe_error, nil)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:apps_probe_failed, server_id, reason}, socket) do
+    if server_id == socket.assigns.server.id do
+      {:noreply,
+       socket
+       |> assign(:probing?, false)
+       |> assign(:probe_error, inspect(reason))}
     else
       {:noreply, socket}
     end

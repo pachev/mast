@@ -21,6 +21,8 @@ defmodule MastWeb.ReleaseLive.View do
   attr :log_buffer, :list, default: []
   attr :log_streaming?, :boolean, default: false
   attr :log_status, :atom, default: :idle
+  attr :probing?, :boolean, default: false
+  attr :probe_error, :any, default: nil
 
   def render(assigns) do
     ~H"""
@@ -56,6 +58,15 @@ defmodule MastWeb.ReleaseLive.View do
             <.ui_badge variant={log_source_badge(@release.log_source)}>
               {log_source_label(@release.log_source)}
             </.ui_badge>
+            <.ui_button
+              icon="hero-signal"
+              size="sm"
+              phx-click="probe-release"
+              loading={@probing?}
+              disabled={@probing? or @release.release_command in [nil, ""]}
+            >
+              {if @probing?, do: "Probing…", else: "Probe Now"}
+            </.ui_button>
           </div>
         </div>
 
@@ -64,6 +75,13 @@ defmodule MastWeb.ReleaseLive.View do
           <p class="text-[13px] text-[var(--mast-font-secondary)] font-mono">
             {@release.release_command || "(no release_command — logs only)"}
           </p>
+        </div>
+
+        <div
+          :if={@probe_error}
+          class="mt-3 px-3 py-2 rounded-[var(--radius-field)] bg-rose-100 dark:bg-rose-950/40 text-[var(--mast-status-offline)] text-xs flex items-center gap-2"
+        >
+          <span class="hero-exclamation-triangle size-4 shrink-0" /> Probe failed: {@probe_error}
         </div>
 
         <.ui_tabs active={@tab} class="mt-4 border-b-0">
