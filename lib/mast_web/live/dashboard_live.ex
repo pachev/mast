@@ -19,7 +19,8 @@ defmodule MastWeb.DashboardLive do
      |> assign(:filter, "")
      |> assign(:servers, servers)
      |> assign(:keys, [])
-     |> assign(:projects, [])
+     |> assign(:projects, Projects.list_projects())
+     |> assign(:collapsed_groups, MapSet.new())
      |> assign(:form, nil)
      |> assign(:key_form, nil)
      |> assign(:show_new_key, false)
@@ -105,6 +106,17 @@ defmodule MastWeb.DashboardLive do
 
   def handle_event("filter", %{"q" => q}, socket) do
     {:noreply, assign(socket, :filter, q)}
+  end
+
+  def handle_event("toggle-project-group", %{"id" => id}, socket) do
+    collapsed =
+      if MapSet.member?(socket.assigns.collapsed_groups, id) do
+        MapSet.delete(socket.assigns.collapsed_groups, id)
+      else
+        MapSet.put(socket.assigns.collapsed_groups, id)
+      end
+
+    {:noreply, assign(socket, :collapsed_groups, collapsed)}
   end
 
   def handle_event("cancel", _, socket) do
@@ -209,11 +221,14 @@ defmodule MastWeb.DashboardLive do
   def render(assigns) do
     visible = filtered(assigns.servers, assigns.filter)
     stats = fleet_stats(assigns.servers)
+    {grouped, ungrouped} = group_by_project(visible, assigns.projects)
 
     assigns =
       assigns
       |> assign(:visible_servers, visible)
       |> assign(:stats, stats)
+      |> assign(:grouped, grouped)
+      |> assign(:ungrouped, ungrouped)
 
     ~H"""
     <Layouts.app flash={@flash} active="dashboard" page_title={@page_title}>
@@ -262,11 +277,29 @@ defmodule MastWeb.DashboardLive do
           No servers match "{@filter}".
         </div>
 
-        <div
-          :if={@visible_servers != []}
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
-        >
-          <.ui_server_card :for={s <- @visible_servers} server={s} />
+        <div :if={@visible_servers != []} class="space-y-5">
+          <div :for={{project, members} <- @grouped} class="space-y-3">
+            <.ui_project_group_header
+              name={project.name}
+              color={project.color}
+              count={length(members)}
+              expanded?={not MapSet.member?(@collapsed_groups, project.id)}
+              toggle={%{"phx-click" => "toggle-project-group", "phx-value-id" => project.id}}
+            />
+            <div
+              :if={not MapSet.member?(@collapsed_groups, project.id)}
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+            >
+              <.ui_server_card :for={s <- members} server={s} />
+            </div>
+          </div>
+
+          <div
+            :if={@ungrouped != []}
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+          >
+            <.ui_server_card :for={s <- @ungrouped} server={s} />
+          </div>
         </div>
       </section>
 
@@ -398,6 +431,18 @@ defmodule MastWeb.DashboardLive do
       String.contains?(String.downcase(srv.name || ""), s) or
         String.contains?(String.downcase(srv.host || ""), s)
     end)
+  end
+
+  defp group_by_project(servers, projects) do
+    by_project = Enum.group_by(servers, & &1.project_id)
+
+    grouped =
+      projects
+      |> Enum.map(fn p -> {p, Map.get(by_project, p.id, [])} end)
+      |> Enum.reject(fn {_p, members} -> members == [] end)
+
+    ungrouped = Map.get(by_project, nil, [])
+    {grouped, ungrouped}
   end
 
   defp fleet_stats(servers) do

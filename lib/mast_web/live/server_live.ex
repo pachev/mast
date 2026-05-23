@@ -49,6 +49,7 @@ defmodule MastWeb.ServerLive do
      |> assign(:confirm_delete?, false)
      |> assign(:confirm_name, "")
      |> assign(:projects, Projects.list_projects())
+     |> assign(:project, load_project(server))
      |> assign(:project_form, project_form(server))
      |> assign(:updates_page, 1)
      |> assign(:updates_page_size, 10)
@@ -366,6 +367,7 @@ defmodule MastWeb.ServerLive do
         {:noreply,
          socket
          |> assign(:server, updated)
+         |> assign(:project, load_project(updated))
          |> assign(:project_form, project_form(updated))
          |> assign(:activity, load_activity(updated.id))
          |> put_flash(:info, "Project saved.")}
@@ -382,6 +384,9 @@ defmodule MastWeb.ServerLive do
   defp project_form(server) do
     to_form(Fleet.change_server(server, %{}), as: :server)
   end
+
+  defp load_project(%{project_id: nil}), do: nil
+  defp load_project(%{project_id: id}), do: Projects.get_project!(id)
 
   defp enqueue_apply(socket, extra) do
     args =
@@ -446,6 +451,7 @@ defmodule MastWeb.ServerLive do
         running?={@running?}
         probing?={@probing?}
         scan_error={@scan_error}
+        project={@project}
       />
 
       <%= case @tab do %>

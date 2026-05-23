@@ -315,6 +315,30 @@ defmodule MastWeb.ServerLiveTest do
     end
   end
 
+  describe "header — project badge" do
+    alias Mast.Fleet.Projects
+
+    test "renders the Project badge when the server belongs to a project", %{conn: conn} do
+      {:ok, p} = Projects.create_project(%{name: "blog", color: "emerald"})
+
+      {:ok, server} =
+        Fleet.create_server(%{name: "blog-prod-1", host: "10.0.0.80", project_id: p.id})
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+
+      assert html =~ "Project: blog"
+      assert html =~ "blog"
+    end
+
+    test "omits the Project badge when the server has no project", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "lone", host: "10.0.0.81"})
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+
+      refute html =~ "Project: "
+    end
+  end
+
   describe "settings tab — project assignment" do
     alias Mast.Fleet.Projects
 

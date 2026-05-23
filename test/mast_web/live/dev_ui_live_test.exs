@@ -36,5 +36,14 @@ defmodule MastWeb.DevUiLiveTest do
 
       assert html_375 =~ "max-w-[375px]"
     end
+
+    test "renders previews for the new Project components", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/dev/ui")
+
+      # ProjectGroup/Header (pen) preview.
+      assert html =~ "Project group header"
+      # Project badge preview.
+      assert html =~ "Project badge"
+    end
   end
 end

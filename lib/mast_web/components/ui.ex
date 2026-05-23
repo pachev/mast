@@ -25,7 +25,7 @@ defmodule MastWeb.Components.UI do
   - `MastWeb.Components.UI.Navigation` — `ui_tabs`, `ui_sidebar`, `ui_page_header`
   - `MastWeb.Components.UI.Data` — `ui_stat`, `ui_metric`, `ui_metric_tile`, `ui_stat_tile`, `ui_kv_table`, `ui_card_title`
   - `MastWeb.Components.UI.Table` — `ui_table`
-  - `MastWeb.Components.UI.Domain` — `ui_server_card`, `ui_app_card`, `ui_app_row`, `ui_release_card`, `ui_log_entry`, `ui_audit_row`
+  - `MastWeb.Components.UI.Domain` — `ui_server_card`, `ui_app_card`, `ui_app_row`, `ui_release_card`, `ui_log_entry`, `ui_audit_row`, `ui_project_group_header`, `ui_project_badge`
   - `MastWeb.Components.UI.JS` — `show/2`, `hide/2`
   """
 

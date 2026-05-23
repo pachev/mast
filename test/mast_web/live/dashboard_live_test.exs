@@ -195,6 +195,48 @@ defmodule MastWeb.DashboardLiveTest do
     end
   end
 
+  describe "fleet grouping by project" do
+    alias Mast.Fleet.Projects
+
+    test "renders a collapsible group header for each project with members", %{conn: conn} do
+      {:ok, blog} = Projects.create_project(%{name: "blog", color: "emerald"})
+
+      {:ok, _} =
+        Fleet.create_server(%{name: "blog-prod-1", host: "10.0.1.1", project_id: blog.id})
+
+      {:ok, _} =
+        Fleet.create_server(%{name: "blog-prod-2", host: "10.0.1.2", project_id: blog.id})
+
+      {:ok, _} = Fleet.create_server(%{name: "lone", host: "10.0.1.3"})
+
+      {:ok, _view, html} = live(conn, ~p"/")
+
+      assert html =~ "blog"
+      # Group count rendered inside the header.
+      assert html =~ "2 servers"
+      # The ungrouped server still shows.
+      assert html =~ "lone"
+      # No "Unassigned" pseudo-group.
+      refute html =~ "Unassigned"
+    end
+
+    test "clicking a group header toggles its expanded state", %{conn: conn} do
+      {:ok, p} = Projects.create_project(%{name: "infra"})
+      {:ok, _} = Fleet.create_server(%{name: "infra-1", host: "10.0.2.1", project_id: p.id})
+
+      {:ok, view, html} = live(conn, ~p"/")
+      assert html =~ "infra-1"
+
+      view
+      |> element("[phx-click='toggle-project-group'][phx-value-id='#{p.id}']")
+      |> render_click()
+
+      html = render(view)
+      # Card is gone from DOM when collapsed.
+      refute html =~ "infra-1"
+    end
+  end
+
   describe "Add Server modal — projects" do
     alias Mast.Fleet.Projects
 

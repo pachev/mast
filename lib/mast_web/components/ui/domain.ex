@@ -356,4 +356,121 @@ defmodule MastWeb.Components.UI.Domain do
   defp audit_label("failure"), do: "failure"
   defp audit_label("key-create"), do: "key.create"
   defp audit_label(_), do: "action"
+
+  @doc """
+  Collapsible group header used to group servers by Project on the
+  Fleet page. Matches the `ProjectGroup/Header` pen component.
+
+      <.ui_project_group_header
+        name="blog"
+        color="emerald"
+        count={2}
+        expanded?={true}
+        toggle={%{"phx-click" => "toggle-project", "phx-value-id" => p.id}}
+      />
+
+  `toggle` is a map of HTML attributes (typically `phx-click`/`phx-value-*`)
+  spread onto the clickable row. Pass an empty map for a static header.
+  """
+  attr :name, :string, required: true
+  attr :color, :any, default: nil
+  attr :count, :integer, required: true
+  attr :expanded?, :boolean, default: true
+  attr :toggle, :map, default: %{}
+
+  def ui_project_group_header(assigns) do
+    ~H"""
+    <div
+      {@toggle}
+      role={if @toggle == %{}, do: nil, else: "button"}
+      tabindex={if @toggle == %{}, do: nil, else: "0"}
+      aria-expanded={if @toggle == %{}, do: nil, else: to_string(@expanded?)}
+      class={[
+        "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 -mx-2 sm:-mx-3 rounded-[var(--radius-field)]",
+        "select-none",
+        if(@toggle == %{},
+          do: "cursor-default",
+          else: "cursor-pointer hover:bg-[var(--mast-bg-card-hover)]"
+        )
+      ]}
+    >
+      <span
+        class={[
+          "hero-chevron-down size-4 shrink-0 text-[var(--mast-font-tertiary)] transition-transform",
+          if(@expanded?, do: "rotate-0", else: "-rotate-90")
+        ]}
+        aria-hidden="true"
+      />
+      <span
+        class={["inline-block size-2.5 rounded-full shrink-0", project_color_bg(@color)]}
+        aria-hidden="true"
+      />
+      <span class="font-mono text-sm font-semibold text-[var(--mast-font-primary)] truncate min-w-0">
+        {@name}
+      </span>
+      <span class="flex-1" />
+      <span class="text-xs text-[var(--mast-font-tertiary)] tabular-nums whitespace-nowrap">
+        {@count} {if @count == 1, do: "server", else: "servers"}
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
+  Small Project chip — used as a badge near the Server detail header
+  and inside server cards when grouping is disabled. Color tints from
+  the preset palette.
+
+      <.ui_project_badge name="blog" color="emerald" />
+  """
+  attr :name, :string, required: true
+  attr :color, :any, default: nil
+  attr :class, :any, default: nil
+
+  def ui_project_badge(assigns) do
+    ~H"""
+    <span
+      class={[
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full",
+        "text-[11px] font-medium whitespace-nowrap max-w-[12rem] truncate",
+        project_badge_classes(@color),
+        @class
+      ]}
+      title={"Project: " <> @name}
+    >
+      <span
+        class={["inline-block size-1.5 rounded-full shrink-0", project_color_bg(@color)]}
+        aria-hidden="true"
+      />
+      {@name}
+    </span>
+    """
+  end
+
+  @doc "Tailwind background class for a Project color preset."
+  def project_color_bg(nil), do: "bg-[var(--mast-font-tertiary)]"
+  def project_color_bg(""), do: "bg-[var(--mast-font-tertiary)]"
+  def project_color_bg("slate"), do: "bg-slate-500"
+  def project_color_bg("indigo"), do: "bg-indigo-500"
+  def project_color_bg("emerald"), do: "bg-emerald-500"
+  def project_color_bg("amber"), do: "bg-amber-500"
+  def project_color_bg("rose"), do: "bg-rose-500"
+  def project_color_bg("violet"), do: "bg-violet-500"
+  def project_color_bg(_), do: "bg-[var(--mast-font-tertiary)]"
+
+  defp project_badge_classes(nil),
+    do: "bg-[var(--mast-bg-secondary)] text-[var(--mast-font-secondary)]"
+
+  defp project_badge_classes(""),
+    do: "bg-[var(--mast-bg-secondary)] text-[var(--mast-font-secondary)]"
+
+  defp project_badge_classes("slate"), do: "bg-slate-100 text-slate-700"
+  defp project_badge_classes("indigo"), do: "bg-indigo-100 text-indigo-700"
+  defp project_badge_classes("emerald"), do: "bg-emerald-100 text-emerald-700"
+  defp project_badge_classes("amber"), do: "bg-amber-100 text-amber-700"
+  defp project_badge_classes("rose"), do: "bg-rose-100 text-rose-700"
+  defp project_badge_classes("violet"), do: "bg-violet-100 text-violet-700"
+
+  defp project_badge_classes(_),
+    do: "bg-[var(--mast-bg-secondary)] text-[var(--mast-font-secondary)]"
 end
