@@ -6,6 +6,23 @@ follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Projects** — a named grouping of Servers as an organizational lens
+  over the Fleet. A Server belongs to at most one Project; Servers
+  without a Project render as plain cards on the Fleet page (no
+  "Unassigned" pseudo-group). Manage from **Settings → Projects** (list,
+  inline create, rename, recolor, delete). Assign at server creation
+  time via the Add Server modal (with inline "Add new project") or from
+  a Server's settings tab. Server detail shows a color-tinted Project
+  badge near the title.
+- Audit events: `project.created`, `project.renamed`, `project.recolored`,
+  `project.deleted`, `server.project_assigned`, `server.project_unassigned`.
+  Deleting a Project cascade-unassigns its Servers (preserved with
+  `project_id` nulled) and emits one event per affected Server in the
+  same transaction.
+- New UI helpers `ui_project_group_header` and `ui_project_badge`
+  (`MastWeb.Components.UI.Domain`), with previews on `/dev/ui`.
+
 ## [0.6.0] - 2026-05-22
 
 ### Added
