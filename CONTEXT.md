@@ -67,6 +67,16 @@ The 32-byte master secret (`MAST_VAULT_KEY`) Cloak uses to encrypt
 Private Keys at rest. Lives in the environment, never in the database.
 _Avoid_: master key, encryption key, cloak key
 
+**Project**:
+A named grouping of Servers that belong together (typically the boxes
+that run one product across its environments — e.g. a `blog` Project
+containing the staging and prod Servers for that product). A Server
+belongs to at most one Project; Servers without a Project render as
+plain rows in the Fleet view, not under an "Unassigned" pseudo-group.
+Projects do not own Releases directly; they group at the Server layer.
+_Avoid_: group, cluster, stack, env, environment (Project is the
+grouping; environment is a sub-axis if we ever add it)
+
 **Operator**:
 The human running Mast and managing the fleet. No account row exists
 yet (single-user assumption, ADR 0006/0007).
@@ -117,6 +127,7 @@ _Avoid_: log driver, log handler
 - Every meaningful action by an **Actor** produces an **Audit Event**
 - A **Server** is **Checked** periodically
 - A **Release** is **Probed** periodically
+- A **Server** belongs to at most one **Project**
 
 ## Example dialogue
 
@@ -153,6 +164,11 @@ _Avoid_: log driver, log handler
 - "user" vs "operator" vs "admin" — resolved: **Operator** until a real
   account model exists; **Actor** is the audit-log field that holds
   Operator (future) or System (today).
+- "environment" (dev/staging/prod) is **not** a Mast concept yet. A
+  Project may contain Servers from multiple environments; the
+  distinction lives in the Server's name today. If cross-Project
+  environment filtering ever matters, that becomes its own axis (likely
+  a small enum on Server) in a future ADR.
 - "app" vs "release" — resolved: **Release** is canonical at the
   configuration layer (one row per Release in the `releases` table). At
   runtime, every Release contains many **Applications** (OTP apps loaded
