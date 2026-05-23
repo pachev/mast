@@ -110,35 +110,32 @@ defmodule Mast.Workers.StatsCollect do
   end
 
   defp parse(output, server, now) do
-    parts = split_combined(output)
+    case split_combined(output) do
+      %{top: top, free: free, df: df, net: net, io: io, load: load} ->
+        parse_parts(top, free, df, net, io, load, server, now)
 
-    with %{
-           top: top,
-           free: free,
-           df: df,
-           net: net,
-           io: io,
-           load: load
-         } <- parts do
-      prev_net = decode_net_prev(server.last_net_counters)
-      prev_disk = decode_disk_prev(server.last_disk_counters)
+      _ ->
+        {:error, :delimiters}
+    end
+  end
 
-      net_result = Metrics.parse_net_dev(net, prev_net, now)
-      disk_result = Metrics.parse_diskstats(io, prev_disk, now)
+  defp parse_parts(top, free, df, net, io, load, server, now) do
+    prev_net = decode_net_prev(server.last_net_counters)
+    prev_disk = decode_disk_prev(server.last_disk_counters)
 
-      cond do
-        is_nil(net_result) ->
-          {:error, :net_dev_parse}
+    net_result = Metrics.parse_net_dev(net, prev_net, now)
+    disk_result = Metrics.parse_diskstats(io, prev_disk, now)
 
-        is_nil(disk_result) ->
-          {:error, :diskstats_parse}
+    cond do
+      is_nil(net_result) ->
+        {:error, :net_dev_parse}
 
-        true ->
-          {:ok, build_stats(top, free, df, load, net_result, disk_result), net_result.raw,
-           disk_result.raw}
-      end
-    else
-      _ -> {:error, :delimiters}
+      is_nil(disk_result) ->
+        {:error, :diskstats_parse}
+
+      true ->
+        {:ok, build_stats(top, free, df, load, net_result, disk_result), net_result.raw,
+         disk_result.raw}
     end
   end
 

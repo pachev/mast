@@ -55,12 +55,10 @@ defmodule Mast.Fleet.Downsample do
   defp aggregate_values(_key, values) do
     numeric = Enum.filter(values, &is_number/1)
 
-    cond do
-      numeric != [] ->
-        Float.round(Enum.sum(numeric) / length(numeric), 4)
-
-      true ->
-        Enum.find(values, &(not is_nil(&1)))
+    if numeric == [] do
+      Enum.find(values, &(not is_nil(&1)))
+    else
+      Float.round(Enum.sum(numeric) / length(numeric), 4)
     end
   end
 
@@ -69,23 +67,25 @@ defmodule Mast.Fleet.Downsample do
     |> Enum.filter(&is_list/1)
     |> Enum.flat_map(& &1)
     |> Enum.group_by(& &1["mount"])
-    |> Enum.map(fn {mount, entries} ->
-      avg = fn key ->
-        nums = entries |> Enum.map(&(&1[key] || 0)) |> Enum.filter(&is_number/1)
+    |> Enum.map(&summarise_mount/1)
+  end
 
-        if nums == [] do
-          0.0
-        else
-          Float.round(Enum.sum(nums) / length(nums), 4)
-        end
-      end
+  defp summarise_mount({mount, entries}) do
+    %{
+      "mount" => mount,
+      "used_pct" => avg_key(entries, "used_pct"),
+      "total_gb" => avg_key(entries, "total_gb"),
+      "used_gb" => avg_key(entries, "used_gb")
+    }
+  end
 
-      %{
-        "mount" => mount,
-        "used_pct" => avg.("used_pct"),
-        "total_gb" => avg.("total_gb"),
-        "used_gb" => avg.("used_gb")
-      }
-    end)
+  defp avg_key(entries, key) do
+    nums = entries |> Enum.map(&(&1[key] || 0)) |> Enum.filter(&is_number/1)
+
+    if nums == [] do
+      0.0
+    else
+      Float.round(Enum.sum(nums) / length(nums), 4)
+    end
   end
 end
