@@ -43,3 +43,6 @@ npm-debug.log
 # Per-machine mise overrides (port, env, etc.)
 mise.local.toml
 
+# Playwright MCP session artifacts
+.playwright-mcp/
+

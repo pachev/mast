@@ -5,34 +5,6 @@ servers and the Elixir releases running on them. Phoenix 1.8 / Elixir 1.19
 / OTP 28. Built first and foremost for me, running as a systemd service
 on an Ubuntu LXC in my Proxmox [home lab](https://pachevjoseph.com/lab).
 
-## Screenshots
-
-Fleet overview (light and dark):
-
-| | |
-|---|---|
-| ![Fleet overview, light theme](docs/img/fleet-light.png) | ![Fleet overview, dark theme](docs/img/fleet-dark.png) |
-
-Per-server detail with CPU, memory, disk, and network charts:
-
-![Server detail page with metrics charts](docs/img/server-detail.png)
-
-OS patch scanning and apply, per server:
-
-![Updates tab showing available apt patches](docs/img/patches.png)
-
-Elixir releases running on the box:
-
-![Releases tab listing running Elixir releases](docs/img/releases.png)
-
-Per-release overview (uptime, memory, scheduler load, top processes):
-
-![Release overview for the hermes app](docs/img/release-overview.png)
-
-OTP application deep dive powered by `:observer_backend`:
-
-![OTP application deep dive with supervision tree](docs/img/otp-app-deep-dive.png)
-
 ## About this project
 
 I built Mast to solve a problem I had. Most of the design decisions are
@@ -45,6 +17,10 @@ I do not want to oversell what this is.
 Mast uses [mise](https://mise.jdx.dev) for tool management and as its
 task runner; installing it first will make everything below smoother.
 Deploying to your own box is covered in [docs/deploying.md](docs/deploying.md).
+
+| | |
+|---|---|
+| ![Server detail page with metrics charts](docs/img/server-detail.png) | ![Updates tab showing available apt patches](docs/img/patches.png) |
 
 ## Who this is for
 
@@ -92,6 +68,26 @@ If you don't fit that, the tools above are better.
 | Load average from `/proc/loadavg` (1m / 5m / 15m) | v0.5 |
 | Stat tiles show used/total for memory and disk, with progress bars | v0.5 |
 | New servers get an immediate connection check instead of waiting for the cron tick | v0.5 |
+
+## Screenshots
+
+Fleet overview (light and dark):
+
+| | |
+|---|---|
+| ![Fleet overview, light theme](docs/img/fleet-light.png) | ![Fleet overview, dark theme](docs/img/fleet-dark.png) |
+
+Elixir releases running on the box:
+
+![Releases tab listing running Elixir releases](docs/img/releases.png)
+
+Per-release overview (uptime, memory, scheduler load, top processes):
+
+![Release overview for the hermes app](docs/img/release-overview.png)
+
+OTP application deep dive powered by `:observer_backend`:
+
+![OTP application deep dive with supervision tree](docs/img/otp-app-deep-dive.png)
 
 ### Supported distros
 
