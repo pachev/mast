@@ -145,6 +145,11 @@ defmodule Mast.Fleet do
 
   # --- Releases --------------------------------------------------------
 
+  @doc "Returns the total number of Releases across the Fleet."
+  def count_all_releases do
+    Repo.aggregate(Release, :count, :id)
+  end
+
   @doc "Lists Releases on a Server, ordered by effective handle."
   def list_releases(%Server{id: server_id}), do: list_releases(server_id)
 

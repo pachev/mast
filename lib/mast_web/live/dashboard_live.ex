@@ -252,7 +252,7 @@ defmodule MastWeb.DashboardLive do
           value={@stats.updates}
           tone={if @stats.updates > 0, do: "warning", else: "default"}
         />
-        <.ui_stat label="Seen Recently" value={@stats.seen_recently} />
+        <.ui_stat label="Releases" value={@stats.releases} />
       </section>
 
       <section class="mb-4">
@@ -450,14 +450,8 @@ defmodule MastWeb.DashboardLive do
       total: length(servers),
       online: Enum.count(servers, &(&1.status == "up")),
       updates: Enum.reduce(servers, 0, fn s, acc -> acc + (s.updates_available || 0) end),
-      seen_recently: Enum.count(servers, &seen_recently?/1)
+      releases: Fleet.count_all_releases()
     }
-  end
-
-  defp seen_recently?(%{last_seen_at: nil}), do: false
-
-  defp seen_recently?(%{last_seen_at: t}) do
-    DateTime.diff(DateTime.utc_now(), t, :second) < 600
   end
 
   defp fleet_subtitle(%{total: 0}), do: "Register your first server below"

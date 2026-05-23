@@ -22,30 +22,59 @@ defmodule MastWeb.Components.UI.Domain do
       navigate={"/servers/#{@server.id}"}
       class={[
         "block bg-[var(--mast-bg-card)] border border-[var(--mast-border)]",
-        "rounded-[var(--radius-box)] p-4 shadow-sm transition-colors",
+        "rounded-[var(--radius-box)] p-4 sm:p-5 shadow-sm transition-colors",
         "hover:border-[var(--mast-accent)] hover:bg-[var(--mast-bg-card-hover)]",
         @class
       ]}
     >
-      <div class="flex items-center justify-between gap-3 mb-3">
-        <div class="flex items-center gap-2 min-w-0">
-          <.ui_status_dot status={@server.status} />
-          <span class="font-mono text-sm font-medium text-[var(--mast-font-primary)] truncate">
-            {@server.name}
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <span
+            class="hidden sm:inline-flex size-9 rounded-md bg-[var(--mast-bg-secondary)] items-center justify-center shrink-0"
+            aria-hidden="true"
+          >
+            <span class="hero-server size-4 text-[var(--mast-font-tertiary)]" />
           </span>
+          <div class="min-w-0">
+            <div class="font-mono text-sm font-semibold text-[var(--mast-font-primary)] truncate">
+              {@server.name}
+            </div>
+            <div class="text-[11px] text-[var(--mast-font-tertiary)] font-mono truncate">
+              {@server.host}
+            </div>
+          </div>
         </div>
         <.ui_badge variant={server_badge_variant(@server.status)}>
           {server_status_label(@server.status)}
         </.ui_badge>
       </div>
 
-      <div class="space-y-2">
+      <div class="flex items-center gap-2 flex-wrap text-[11px] text-[var(--mast-font-tertiary)] mb-3 min-w-0">
+        <span class="truncate">{@server.os_id || "—"}</span>
+        <span aria-hidden="true">·</span>
+        <span class="truncate">{card_last_seen(@server.last_seen_at)}</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
         <.ui_metric label="CPU" value={@server.cpu} />
         <.ui_metric label="MEM" value={@server.memory} />
         <.ui_metric label="DISK" value={@server.disk} />
       </div>
     </.link>
     """
+  end
+
+  defp card_last_seen(nil), do: "never seen"
+
+  defp card_last_seen(%DateTime{} = t) do
+    diff = DateTime.diff(DateTime.utc_now(), t, :second)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3600 -> "#{div(diff, 60)}m ago"
+      diff < 86_400 -> "#{div(diff, 3600)}h ago"
+      true -> "#{div(diff, 86_400)}d ago"
+    end
   end
 
   defp server_badge_variant("up"), do: "online"

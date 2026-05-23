@@ -320,10 +320,13 @@ defmodule MastWeb.DevUiLive.View do
     server = %{
       id: "00000000-0000-0000-0000-000000000000",
       name: "web-prod-1",
+      host: "192.168.1.100",
+      os_id: "Ubuntu 24.04",
       status: "up",
       cpu: 42,
       memory: 78,
-      disk: 60
+      disk: 60,
+      last_seen_at: DateTime.add(DateTime.utc_now(), -120, :second)
     }
 
     assigns = assign(assigns, :server, server)
