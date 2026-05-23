@@ -79,9 +79,13 @@ depends = ["release:deps"]
 env = { MIX_ENV = "prod" }
 run = "mix compile"
 
+[tasks."release:npm"]
+description = "Install JS deps for esbuild (chart.js etc.)"
+run = "cd assets && npm ci --omit=dev"
+
 [tasks."release:assets"]
 description = "Build and digest assets"
-depends = ["release:compile"]
+depends = ["release:compile", "release:npm"]
 env = { MIX_ENV = "prod" }
 run = "mix assets.setup && mix assets.deploy"
 

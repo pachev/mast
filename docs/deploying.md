@@ -24,11 +24,14 @@ disk. Mast itself is tiny; Postgres dominates.
 You will need:
 
 - A Linux host with outbound network access
-- Erlang/OTP 28 and Elixir 1.19 available at build time (mise is the
-  simplest path; you can also use asdf or system packages)
+- Erlang/OTP 28, Elixir 1.19, and Node 22 available at build time
+  (mise is the simplest path; you can also use asdf or system packages)
 - A reachable Postgres 14+ instance (local or remote)
 - An unprivileged user to run the release as (I use `mast`, but pick
   whatever fits your shop)
+
+Node is build-time only. The release tree it produces is pure BEAM;
+the runtime host does not need Node installed.
 
 ## 2. Install system packages
 
@@ -68,9 +71,15 @@ On the target host (or any host with the same OTP major and architecture):
 ```sh
 git clone https://github.com/pachev/mast.git
 cd mast
-mise install            # Erlang 28 + Elixir 1.19
+mise install            # Erlang 28 + Elixir 1.19 + Node 22
 mise run release        # builds _build/prod/rel/mast
 ```
+
+`mise run release` installs JS deps (chart.js for the metrics charts)
+via `npm ci` before invoking esbuild, then bundles everything into the
+release. If you ever see `Could not resolve "chart.js/auto"` from
+esbuild during a build, that step did not run; check that Node 22 is
+on the path and run `cd assets && npm ci --omit=dev` once by hand.
 
 This produces a self-contained release tree at
 `_build/prod/rel/mast/`. You can leave it in place or move it somewhere
