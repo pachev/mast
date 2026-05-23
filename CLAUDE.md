@@ -95,11 +95,13 @@ migration that has been committed; write a new one instead.
 A change is done when:
 
 1. Tests cover it, written first (TDD).
-2. `mix test` passes cleanly.
-3. `mix format` has been run.
-4. If the change crosses an architectural line, the relevant ADR is updated
+2. `mix precommit` passes cleanly. This is the gate. It runs
+   `compile --warnings-as-errors`, `deps.unlock --unused`, `format`,
+   `credo --strict`, and `test` — the same checks CI runs. Do not commit
+   until this is green. `mix test` alone is not enough.
+3. If the change crosses an architectural line, the relevant ADR is updated
    or a new one is added.
-5. Commit messages are conventional (`feat:`, `fix:`, `docs:`, `chore:`,
+4. Commit messages are conventional (`feat:`, `fix:`, `docs:`, `chore:`,
    `test:`) and describe **why**, not just **what**.
 
 ## House style

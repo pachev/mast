@@ -1,5 +1,9 @@
 # Mast
 
+[![CI](https://github.com/pachev/mast/actions/workflows/ci.yml/badge.svg)](https://github.com/pachev/mast/actions/workflows/ci.yml)
+[![Elixir](https://img.shields.io/badge/elixir-1.19-purple)](https://elixir-lang.org)
+[![Phoenix](https://img.shields.io/badge/phoenix-1.8-orange)](https://www.phoenixframework.org)
+
 A small self-hosted dashboard for tracking a personal fleet of Linux
 servers and the Elixir releases running on them. Phoenix 1.8 / Elixir 1.19
 / OTP 28. Built first and foremost for me, running as a systemd service
