@@ -22,15 +22,7 @@ defmodule Mast.Workers.AppProbe do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"all" => true}}) do
-    Enum.each(Fleet.list_servers(), fn server ->
-      server
-      |> Fleet.list_releases()
-      |> Enum.each(fn release ->
-        if release.release_command && release.release_command != "" do
-          __MODULE__.new(%{release_id: release.id}) |> Oban.insert!()
-        end
-      end)
-    end)
+    Enum.each(Fleet.list_servers(), &enqueue_probes_for/1)
 
     :ok
   end
@@ -71,6 +63,17 @@ defmodule Mast.Workers.AppProbe do
 
   defp runnable?(%Release{release_command: rc}) when is_binary(rc) and rc != "", do: true
   defp runnable?(_), do: false
+
+  defp enqueue_probes_for(server) do
+    server
+    |> Fleet.list_releases()
+    |> Enum.filter(&probable?/1)
+    |> Enum.each(fn release ->
+      __MODULE__.new(%{release_id: release.id}) |> Oban.insert!()
+    end)
+  end
+
+  defp probable?(release), do: release.release_command not in [nil, ""]
 
   defp broadcast(msg), do: Phoenix.PubSub.broadcast(Mast.PubSub, "servers", msg)
 end

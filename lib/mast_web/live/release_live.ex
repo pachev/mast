@@ -108,24 +108,22 @@ defmodule MastWeb.ReleaseLive do
   def handle_event("probe-release", _, socket) do
     release = socket.assigns.release
 
-    cond do
-      release.release_command in [nil, ""] ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "This Release has no release_command — set one in Settings to enable probing."
-         )}
+    if release.release_command in [nil, ""] do
+      {:noreply,
+       put_flash(
+         socket,
+         :error,
+         "This Release has no release_command — set one in Settings to enable probing."
+       )}
+    else
+      %{release_id: release.id}
+      |> AppProbe.new()
+      |> Oban.insert!()
 
-      true ->
-        %{release_id: release.id}
-        |> AppProbe.new()
-        |> Oban.insert!()
-
-        {:noreply,
-         socket
-         |> assign(:probing?, true)
-         |> assign(:probe_error, nil)}
+      {:noreply,
+       socket
+       |> assign(:probing?, true)
+       |> assign(:probe_error, nil)}
     end
   end
 
@@ -203,17 +201,14 @@ defmodule MastWeb.ReleaseLive do
       parent = self()
       ref = make_ref()
 
+      forward_event = fn event, _acc ->
+        send(parent, {:log_event, ref, event})
+        nil
+      end
+
       task_pid =
         spawn_link(fn ->
-          Mast.SSH.run_stream(
-            server,
-            command,
-            fn event, _acc ->
-              send(parent, {:log_event, ref, event})
-              nil
-            end,
-            nil
-          )
+          Mast.SSH.run_stream(server, command, forward_event, nil)
         end)
 
       Janitor.register(self(), task_pid)

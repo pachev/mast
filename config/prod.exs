@@ -19,7 +19,7 @@ config :logger, level: :info
 config :logger, :default_handler,
   formatter:
     {LoggerJSON.Formatters.Basic,
-     metadata: [:request_id, :server_id, :private_key_id, :run_id, :job_id]}
+     metadata: [:request_id, :server_id, :release_id, :private_key_id, :run_id, :job_id]}
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
