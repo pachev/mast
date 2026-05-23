@@ -297,13 +297,13 @@ defmodule MastWeb.DashboardLive do
           <div :if={@ungrouped != []} class="space-y-3">
             <div
               :if={@grouped != []}
-              class="flex items-center gap-3 pt-2 mt-2 border-t border-[var(--mast-border)]"
+              class="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 -mx-2 sm:-mx-3 select-none"
             >
-              <span class="text-xs font-medium uppercase tracking-wide text-[var(--mast-font-tertiary)]">
+              <span class="font-mono text-sm font-semibold text-[var(--mast-font-secondary)] truncate min-w-0">
                 Ungrouped
               </span>
-              <span class="flex-1 h-px bg-[var(--mast-border)]" />
-              <span class="text-[11px] text-[var(--mast-font-tertiary)] tabular-nums whitespace-nowrap">
+              <span class="flex-1" />
+              <span class="text-xs text-[var(--mast-font-tertiary)] tabular-nums whitespace-nowrap">
                 {length(@ungrouped)} {if length(@ungrouped) == 1, do: "server", else: "servers"}
               </span>
             </div>
