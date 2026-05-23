@@ -5,6 +5,34 @@ servers and the Elixir releases running on them. Phoenix 1.8 / Elixir 1.19
 / OTP 28. Built first and foremost for me, running as a systemd service
 on an Ubuntu LXC in my Proxmox [home lab](https://pachevjoseph.com/lab).
 
+## Screenshots
+
+Fleet overview (light and dark):
+
+| | |
+|---|---|
+| ![Fleet overview, light theme](docs/img/fleet-light.png) | ![Fleet overview, dark theme](docs/img/fleet-dark.png) |
+
+Per-server detail with CPU, memory, disk, and network charts:
+
+![Server detail page with metrics charts](docs/img/server-detail.png)
+
+OS patch scanning and apply, per server:
+
+![Updates tab showing available apt patches](docs/img/patches.png)
+
+Elixir releases running on the box:
+
+![Releases tab listing running Elixir releases](docs/img/releases.png)
+
+Per-release overview (uptime, memory, scheduler load, top processes):
+
+![Release overview for the hermes app](docs/img/release-overview.png)
+
+OTP application deep dive powered by `:observer_backend`:
+
+![OTP application deep dive with supervision tree](docs/img/otp-app-deep-dive.png)
+
 ## About this project
 
 I built Mast to solve a problem I had. Most of the design decisions are
