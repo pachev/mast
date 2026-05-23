@@ -56,18 +56,36 @@ if config_env() == :prod do
     System.get_env("MAST_VAULT_KEY") ||
       raise """
       environment variable MAST_VAULT_KEY is missing.
-      Generate one with:  mix phx.gen.secret 32 | base64
+      Generate one with:  openssl rand -base64 32
 
       This key encrypts SSH private keys at rest. Losing it makes every
       stored key permanently unreadable. Source it from your secrets
       manager (1Password CLI, AWS Secrets Manager, Doppler, etc).
       """
 
+  vault_key_bytes =
+    case Base.decode64(vault_key) do
+      {:ok, bytes} ->
+        bytes
+
+      :error ->
+        raise "MAST_VAULT_KEY is not valid base64. Generate with: openssl rand -base64 32"
+    end
+
+  if byte_size(vault_key_bytes) != 32 do
+    raise """
+    MAST_VAULT_KEY must decode to exactly 32 bytes for AES-256-GCM.
+    Got #{byte_size(vault_key_bytes)} bytes.
+
+    Generate a correct key with:  openssl rand -base64 32
+    """
+  end
+
   config :mast, Mast.Vault,
     ciphers: [
       default: {
         Cloak.Ciphers.AES.GCM,
-        tag: "AES.GCM.V1", key: Base.decode64!(vault_key)
+        tag: "AES.GCM.V1", key: vault_key_bytes
       }
     ]
 

@@ -110,12 +110,16 @@ separate unencrypted key for Mast and authorize it on the target box
 
 ### Encryption key
 
-`MAST_VAULT_KEY` is required in production. Generate one once and put it
-in your secrets manager:
+`MAST_VAULT_KEY` is required in production. It must decode to exactly 32
+bytes (AES-256-GCM). Generate one once and put it in your secrets
+manager:
 
 ```sh
-mix phx.gen.secret 32 | base64
+openssl rand -base64 32
 ```
+
+The app refuses to boot if the variable is missing, not valid base64, or
+does not decode to 32 bytes.
 
 Dev/test use committed fallback keys (these aren't secrets — the dev DB
 has no real data).
