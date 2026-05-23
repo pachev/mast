@@ -14,6 +14,10 @@ and I plan to keep adding features at my own pace. PRs are welcome.
 Please keep the above in mind before relying on it for anything critical.
 I do not want to oversell what this is.
 
+Mast uses [mise](https://mise.jdx.dev) for tool management and as its
+task runner; installing it first will make everything below smoother.
+Deploying to your own box is covered in [docs/deploying.md](docs/deploying.md).
+
 ## Who this is for
 
 People who run a handful of Linux boxes — usually Ubuntu, Debian or
