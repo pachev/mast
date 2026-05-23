@@ -47,6 +47,7 @@ defmodule Mast.Fleet.Server do
     field :last_disk_counters, :map
 
     belongs_to :private_key, Mast.Keys.PrivateKey
+    belongs_to :project, Mast.Fleet.Project
     has_many :applications, Mast.Apps.Application
     has_many :releases, Mast.Fleet.Release
 
@@ -68,13 +69,14 @@ defmodule Mast.Fleet.Server do
   @doc false
   def changeset(server, attrs) do
     server
-    |> cast(attrs, [:name, :host, :user, :port, :private_key_id])
+    |> cast(attrs, [:name, :host, :user, :port, :private_key_id, :project_id])
     |> validate_required([:name, :host])
     |> validate_length(:name, min: 1, max: 64)
     |> validate_length(:host, min: 1, max: 255)
     |> validate_number(:port, greater_than: 0, less_than_or_equal_to: 65_535)
     |> unique_constraint(:name)
     |> foreign_key_constraint(:private_key_id)
+    |> foreign_key_constraint(:project_id)
   end
 
   @doc false
