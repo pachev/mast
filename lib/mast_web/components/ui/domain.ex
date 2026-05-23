@@ -182,7 +182,7 @@ defmodule MastWeb.Components.UI.Domain do
 
       <hr class="border-t border-[var(--mast-border)] my-4" />
 
-      <div class="flex items-center gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <.ui_metric_tile label="Memory" value={format_memory(@memory_mb)} />
         <.ui_metric_tile label="Processes" value={format_count(@processes)} />
         <.ui_metric_tile label="Msg Queue" value={format_count(@msg_queue)} />
@@ -297,26 +297,30 @@ defmodule MastWeb.Components.UI.Domain do
   def ui_audit_row(assigns) do
     ~H"""
     <div class={[
-      "flex items-center gap-3 px-4 py-3 border-b border-[var(--mast-border)] last:border-0 hover:bg-[var(--mast-bg-card-hover)]",
+      "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3 border-b border-[var(--mast-border)] last:border-0 hover:bg-[var(--mast-bg-card-hover)]",
       audit_row_bg(@variant)
     ]}>
-      <div class="size-8 rounded-full bg-[var(--mast-bg-tertiary)] flex items-center justify-center shrink-0">
-        <span class={[audit_icon(@variant), "size-4", audit_icon_color(@variant)]} />
-      </div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap text-sm">
-          <span class="font-medium text-[var(--mast-font-primary)]">{@actor}</span>
-          <.ui_badge variant={audit_badge_variant(@variant)} dot={false}>
-            {audit_label(@variant)}
-          </.ui_badge>
-          <span class="text-[var(--mast-font-secondary)]">{@verb}</span>
-          <span :if={@target} class="font-mono text-[var(--mast-font-primary)]">{@target}</span>
+      <div class="flex items-start gap-3 flex-1 min-w-0">
+        <div class="size-8 rounded-full bg-[var(--mast-bg-tertiary)] flex items-center justify-center shrink-0">
+          <span class={[audit_icon(@variant), "size-4", audit_icon_color(@variant)]} />
         </div>
-        <div :if={@detail} class="text-xs text-[var(--mast-font-tertiary)] mt-0.5 truncate">
-          {@detail}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap text-sm">
+            <span class="font-medium text-[var(--mast-font-primary)]">{@actor}</span>
+            <.ui_badge variant={audit_badge_variant(@variant)} dot={false}>
+              {audit_label(@variant)}
+            </.ui_badge>
+            <span class="text-[var(--mast-font-secondary)]">{@verb}</span>
+            <span :if={@target} class="font-mono text-[var(--mast-font-primary)]">{@target}</span>
+          </div>
+          <div :if={@detail} class="text-xs text-[var(--mast-font-tertiary)] mt-0.5 truncate">
+            {@detail}
+          </div>
         </div>
       </div>
-      <div class="text-xs text-[var(--mast-font-tertiary)] tabular-nums shrink-0">{@time}</div>
+      <div class="text-xs text-[var(--mast-font-tertiary)] tabular-nums shrink-0 pl-11 sm:pl-0">
+        {@time}
+      </div>
     </div>
     """
   end

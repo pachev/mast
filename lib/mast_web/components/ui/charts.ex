@@ -41,13 +41,13 @@ defmodule MastWeb.Components.UI.Charts do
       |> assign(:until_ms, to_unix_ms(assigns[:until]))
 
     ~H"""
-    <div class="w-full">
+    <div class="w-full min-w-0">
       <%= if @empty? do %>
         <div class="h-[180px] flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--mast-bg-secondary)] text-xs text-[var(--mast-font-tertiary)]">
           Waiting for more samples...
         </div>
       <% else %>
-        <div class="w-full h-[180px] relative">
+        <div class="w-full min-w-0 h-[180px] relative overflow-hidden">
           <canvas
             id={@id}
             phx-hook=".MetricChart"
@@ -58,7 +58,7 @@ defmodule MastWeb.Components.UI.Charts do
             data-since={@since_ms}
             data-until={@until_ms}
             aria-label={@label}
-            class="rounded-[var(--radius-sm)] bg-[var(--mast-bg-secondary)]"
+            class="rounded-[var(--radius-sm)] bg-[var(--mast-bg-secondary)] !w-full !max-w-full"
           >
           </canvas>
         </div>
@@ -86,9 +86,17 @@ defmodule MastWeb.Components.UI.Charts do
         mounted() {
           this.render()
           this.el.addEventListener("dblclick", () => this.chart?.resetZoom())
+          // Chart.js's ResizeObserver can miss flex/grid resizes when the
+          // parent shrinks below the canvas's intrinsic width. Force a
+          // resize on window changes as a fallback.
+          this._onResize = () => this.chart?.resize()
+          window.addEventListener("resize", this._onResize)
         },
         updated() { this.render() },
-        destroyed() { this.chart?.destroy() },
+        destroyed() {
+          window.removeEventListener("resize", this._onResize)
+          this.chart?.destroy()
+        },
         render() {
           const series = JSON.parse(this.el.dataset.series)
           const unit = this.el.dataset.unit || ""
