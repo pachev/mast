@@ -52,9 +52,11 @@ defmodule Mast.SSH.KeyCb do
   end
 
   # OpenSSH new format (`-----BEGIN OPENSSH PRIVATE KEY-----`). Erlang's
-  # :ssh_file.decode/2 handles the binary blob into a [{Key, Attrs}] list.
+  # :ssh_file.decode/2 handles the wrapped PEM into a [{Key, Attrs}] list
+  # when called with :public_key. (The :openssh_key tag is for the
+  # authorized_keys / known_hosts text format, not private keys.)
   defp decode_entry({{:no_asn1, :new_openssh}, blob, _}) do
-    case :ssh_file.decode(reconstitute_pem(blob), :openssh_key) do
+    case :ssh_file.decode(reconstitute_pem(blob), :public_key) do
       [{key, _attrs} | _] -> {:ok, key}
       _ -> :error
     end
