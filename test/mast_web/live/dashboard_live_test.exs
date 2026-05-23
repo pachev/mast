@@ -194,4 +194,66 @@ defmodule MastWeb.DashboardLiveTest do
       assert render(view) =~ "Fleet Overview"
     end
   end
+
+  describe "Add Server modal — projects" do
+    alias Mast.Fleet.Projects
+
+    test "shows a Project dropdown listing registered projects", %{conn: conn} do
+      {:ok, _p} = Projects.create_project(%{name: "blog"})
+
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+      html = render(view)
+
+      assert html =~ "Project"
+      assert html =~ "blog"
+    end
+
+    test "submits a new server with project_id", %{conn: conn} do
+      {:ok, p} = Projects.create_project(%{name: "platform"})
+
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+
+      view
+      |> form("#new-server-form",
+        server: %{name: "with-project", host: "10.0.0.30", project_id: p.id}
+      )
+      |> render_submit()
+
+      [server] = Mast.Fleet.list_servers()
+      assert server.name == "with-project"
+      assert server.project_id == p.id
+    end
+
+    test "inline 'Add new project' expands a form inside the modal", %{conn: conn} do
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+
+      refute has_element?(view, "#new-project-form")
+
+      view |> element("[phx-click=toggle_new_project]") |> render_click()
+
+      assert has_element?(view, "#new-project-form")
+    end
+
+    test "inline project creation selects the new project on the server form", %{conn: conn} do
+      {:ok, view, _} = live(conn, ~p"/servers/new")
+
+      view |> element("[phx-click=toggle_new_project]") |> render_click()
+
+      view
+      |> form("#new-project-form", project: %{name: "infra", color: "indigo"})
+      |> render_submit()
+
+      [project] = Projects.list_projects()
+      html = render(view)
+
+      assert html =~ "infra"
+      # The new project is the selected option on the server form.
+      selected_option =
+        Regex.run(~r/<option[^>]*selected[^>]*value="([^"]+)"[^>]*>infra/, html) ||
+          Regex.run(~r/<option[^>]*value="([^"]+)"[^>]*selected[^>]*>infra/, html)
+
+      assert selected_option, "Expected the 'infra' option to be selected. Got: #{html}"
+      assert Enum.at(selected_option, 1) == project.id
+    end
+  end
 end

@@ -2,7 +2,7 @@ defmodule MastWeb.DashboardLive do
   use MastWeb, :live_view
 
   alias Mast.Fleet
-  alias Mast.Fleet.Server
+  alias Mast.Fleet.{Project, Projects, Server}
   alias Mast.Keys
   alias Mast.Keys.PrivateKey
   alias Mast.Workers.ConnectionCheck
@@ -19,9 +19,12 @@ defmodule MastWeb.DashboardLive do
      |> assign(:filter, "")
      |> assign(:servers, servers)
      |> assign(:keys, [])
+     |> assign(:projects, [])
      |> assign(:form, nil)
      |> assign(:key_form, nil)
-     |> assign(:show_new_key, false)}
+     |> assign(:show_new_key, false)
+     |> assign(:project_form, nil)
+     |> assign(:show_new_project, false)}
   end
 
   @impl true
@@ -53,6 +56,8 @@ defmodule MastWeb.DashboardLive do
     |> assign(:form, nil)
     |> assign(:show_new_key, false)
     |> assign(:key_form, nil)
+    |> assign(:show_new_project, false)
+    |> assign(:project_form, nil)
   end
 
   defp apply_action(socket, :new, _params) do
@@ -61,8 +66,11 @@ defmodule MastWeb.DashboardLive do
     socket
     |> assign(:form, to_form(cs, as: :server))
     |> assign(:keys, Keys.list_keys())
+    |> assign(:projects, Projects.list_projects())
     |> assign(:show_new_key, false)
     |> assign(:key_form, nil)
+    |> assign(:show_new_project, false)
+    |> assign(:project_form, nil)
   end
 
   @impl true
@@ -135,7 +143,7 @@ defmodule MastWeb.DashboardLive do
 
         form =
           socket.assigns.form
-          |> server_form_with_key(key.id)
+          |> server_form_with(:private_key_id, key.id)
 
         {:noreply,
          socket
@@ -146,6 +154,52 @@ defmodule MastWeb.DashboardLive do
 
       {:error, cs} ->
         {:noreply, assign(socket, :key_form, to_form(cs, as: :key))}
+    end
+  end
+
+  def handle_event("toggle_new_project", _, socket) do
+    show? = not socket.assigns.show_new_project
+
+    project_form =
+      if show? do
+        to_form(Projects.change_project(%Project{}), as: :project)
+      else
+        nil
+      end
+
+    {:noreply,
+     socket
+     |> assign(:show_new_project, show?)
+     |> assign(:project_form, project_form)}
+  end
+
+  def handle_event("validate_project", %{"project" => params}, socket) do
+    cs =
+      %Project{}
+      |> Projects.change_project(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :project_form, to_form(cs, as: :project))}
+  end
+
+  def handle_event("save_project", %{"project" => params}, socket) do
+    case Projects.create_project(params) do
+      {:ok, project} ->
+        projects = Projects.list_projects()
+
+        form =
+          socket.assigns.form
+          |> server_form_with(:project_id, project.id)
+
+        {:noreply,
+         socket
+         |> assign(:projects, projects)
+         |> assign(:form, form)
+         |> assign(:show_new_project, false)
+         |> assign(:project_form, nil)}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :project_form, to_form(cs, as: :project))}
     end
   end
 
@@ -252,6 +306,22 @@ defmodule MastWeb.DashboardLive do
           >
             {if @show_new_key, do: "Cancel adding new key", else: "Add new key"}
           </button>
+
+          <.input
+            field={@form[:project_id]}
+            type="select"
+            label="Project"
+            prompt={if @projects == [], do: "No projects yet", else: "— none —"}
+            options={Enum.map(@projects, &{&1.name, &1.id})}
+          />
+
+          <button
+            type="button"
+            phx-click="toggle_new_project"
+            class="text-xs text-[var(--mast-accent)] hover:underline"
+          >
+            {if @show_new_project, do: "Cancel adding new project", else: "Add new project"}
+          </button>
         </.form>
 
         <div :if={@show_new_key} class="mt-3 pt-3 border-t border-[var(--mast-border)]">
@@ -278,6 +348,31 @@ defmodule MastWeb.DashboardLive do
               required
             />
             <.ui_button type="submit" form="new-key-form">Save key</.ui_button>
+          </.form>
+        </div>
+
+        <div :if={@show_new_project} class="mt-3 pt-3 border-t border-[var(--mast-border)]">
+          <.form
+            for={@project_form}
+            id="new-project-form"
+            phx-change="validate_project"
+            phx-submit="save_project"
+            class="space-y-2"
+          >
+            <.input field={@project_form[:name]} label="Project name" placeholder="blog" required />
+            <.input
+              field={@project_form[:description]}
+              label="Description (optional)"
+              placeholder="Customer-facing blog stack"
+            />
+            <.input
+              field={@project_form[:color]}
+              type="select"
+              label="Color (optional)"
+              prompt="— none —"
+              options={Enum.map(Project.colors(), &{&1, &1})}
+            />
+            <.ui_button type="submit" form="new-project-form">Save project</.ui_button>
           </.form>
         </div>
 
@@ -334,11 +429,11 @@ defmodule MastWeb.DashboardLive do
     |> Enum.map(fn {_field, {msg, _opts}} -> msg end)
   end
 
-  defp server_form_with_key(form, key_id) do
+  defp server_form_with(form, field, value) do
     params =
       form.params
       |> Map.new()
-      |> Map.put("private_key_id", to_string(key_id))
+      |> Map.put(to_string(field), to_string(value))
 
     %Server{}
     |> Fleet.change_server(params)

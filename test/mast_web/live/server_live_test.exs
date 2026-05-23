@@ -314,4 +314,54 @@ defmodule MastWeb.ServerLiveTest do
       refute html =~ "ghost"
     end
   end
+
+  describe "settings tab — project assignment" do
+    alias Mast.Fleet.Projects
+
+    test "shows a Project dropdown on the settings tab", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "needs-proj", host: "10.0.0.70"})
+      {:ok, _p} = Projects.create_project(%{name: "blog"})
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}?tab=settings")
+
+      assert html =~ "Project"
+      assert html =~ "blog"
+    end
+
+    test "assigning a project via the form emits an audit event", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "to-assign", host: "10.0.0.71"})
+      {:ok, p} = Projects.create_project(%{name: "infra"})
+
+      {:ok, view, _html} = live(conn, ~p"/servers/#{server}?tab=settings")
+
+      view
+      |> form("#server-project-form", server: %{project_id: p.id})
+      |> render_submit()
+
+      reloaded = Fleet.get_server!(server.id)
+      assert reloaded.project_id == p.id
+
+      types =
+        "Server"
+        |> Mast.Audit.list_for_subject(server.id)
+        |> Enum.map(& &1.event_type)
+
+      assert "server.project_assigned" in types
+    end
+
+    test "unassigning by selecting the blank option clears project_id", %{conn: conn} do
+      {:ok, p} = Projects.create_project(%{name: "leaving"})
+
+      {:ok, server} =
+        Fleet.create_server(%{name: "to-unassign", host: "10.0.0.72", project_id: p.id})
+
+      {:ok, view, _html} = live(conn, ~p"/servers/#{server}?tab=settings")
+
+      view
+      |> form("#server-project-form", server: %{project_id: ""})
+      |> render_submit()
+
+      assert Fleet.get_server!(server.id).project_id == nil
+    end
+  end
 end

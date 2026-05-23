@@ -9,6 +9,8 @@ defmodule MastWeb.ServerLive.SettingsTab do
   attr :server, :map, required: true
   attr :confirm_delete?, :boolean, required: true
   attr :confirm_name, :string, required: true
+  attr :projects, :list, required: true
+  attr :project_form, :any, required: true
 
   def render(assigns) do
     ~H"""
@@ -20,6 +22,29 @@ defmodule MastWeb.ServerLive.SettingsTab do
         <:row label="OS">{@server.os_id || "—"}</:row>
         <:row label="Package manager">{@server.package_manager || "—"}</:row>
       </.ui_kv_table>
+
+      <div class="rounded-[var(--radius-box)] border border-[var(--mast-border)] bg-[var(--mast-bg-card)] p-4 sm:p-5">
+        <h3 class="text-base font-semibold text-[var(--mast-font-primary)] mb-1">Project</h3>
+        <p class="text-xs text-[var(--mast-font-secondary)] mb-3">
+          Group this server with others under a Project. Reassignment is recorded as an audit event.
+        </p>
+        <.form
+          for={@project_form}
+          id="server-project-form"
+          phx-submit="update-project"
+          class="flex items-end gap-2 flex-wrap"
+        >
+          <.input
+            field={@project_form[:project_id]}
+            type="select"
+            label="Project"
+            prompt="— none —"
+            options={Enum.map(@projects, &{&1.name, &1.id})}
+            class="min-w-[12rem] flex-1"
+          />
+          <.ui_button type="submit" form="server-project-form">Save</.ui_button>
+        </.form>
+      </div>
 
       <div class="rounded-[var(--radius-box)] border border-[var(--mast-status-offline)] bg-[var(--mast-bg-card)] p-6">
         <div class="flex items-center justify-between gap-4 flex-wrap">
