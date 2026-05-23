@@ -42,6 +42,9 @@ defmodule Mast.Fleet.Server do
     field :last_scan_at, :utc_datetime_usec
     field :last_scan, :map
 
+    field :last_net_counters, :map
+    field :last_disk_counters, :map
+
     belongs_to :private_key, Mast.Keys.PrivateKey
     has_many :applications, Mast.Apps.Application
     has_many :releases, Mast.Fleet.Release
@@ -95,6 +98,11 @@ defmodule Mast.Fleet.Server do
     |> put_change(:status, "up")
     |> put_change(:unreachable_count, 0)
     |> put_change(:last_seen_at, DateTime.utc_now())
+  end
+
+  @doc false
+  def counters_changeset(server, attrs) do
+    cast(server, attrs, [:last_net_counters, :last_disk_counters])
   end
 
   @doc false

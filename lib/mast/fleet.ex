@@ -98,6 +98,16 @@ defmodule Mast.Fleet do
   end
 
   @doc """
+  Updates the cached raw counters used to compute bandwidth and I/O deltas
+  on the next collect tick.
+  """
+  def update_counters(%Server{} = s, attrs) do
+    s
+    |> Server.counters_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
   Inserts a time-bucketed metrics sample.
 
   `attrs` shape: `%{bucket, recorded_at, stats}`. The `server_id` is taken
