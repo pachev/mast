@@ -320,10 +320,13 @@ defmodule MastWeb.DevUiLive.View do
     server = %{
       id: "00000000-0000-0000-0000-000000000000",
       name: "web-prod-1",
+      host: "192.168.1.100",
+      os_id: "Ubuntu 24.04",
       status: "up",
       cpu: 42,
       memory: 78,
-      disk: 60
+      disk: 60,
+      last_seen_at: DateTime.add(DateTime.utc_now(), -120, :second)
     }
 
     assigns = assign(assigns, :server, server)
@@ -405,6 +408,26 @@ defmodule MastWeb.DevUiLive.View do
         <.ui_log_entry time="14:22:04" kind={:stderr}>W: Some warning from apt</.ui_log_entry>
         <.ui_log_entry time="14:22:05" kind={:exit}>Process exited 0</.ui_log_entry>
         <.ui_log_entry time="14:22:06" kind={:error}>Job failed</.ui_log_entry>
+      </div>
+    </.ui_card>
+
+    <.ui_card padded={false}>
+      <:title>Project group header</:title>
+      <div class="px-5 pb-5 space-y-3">
+        <.ui_project_group_header name="blog" color="emerald" count={2} expanded?={true} />
+        <.ui_project_group_header name="platform" color="indigo" count={3} expanded?={true} />
+        <.ui_project_group_header name="internal-tools" color={nil} count={1} expanded?={false} />
+      </div>
+    </.ui_card>
+
+    <.ui_card padded={false}>
+      <:title>Project badge</:title>
+      <div class="px-5 pb-5 flex items-center gap-2 flex-wrap">
+        <.ui_project_badge name="blog" color="emerald" />
+        <.ui_project_badge name="platform" color="indigo" />
+        <.ui_project_badge name="hot-fixes" color="rose" />
+        <.ui_project_badge name="experiments" color="violet" />
+        <.ui_project_badge name="archive" color={nil} />
       </div>
     </.ui_card>
     """

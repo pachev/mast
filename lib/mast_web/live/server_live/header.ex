@@ -13,6 +13,7 @@ defmodule MastWeb.ServerLive.Header do
   attr :running?, :boolean, required: true
   attr :probing?, :boolean, required: true
   attr :scan_error, :any, default: nil
+  attr :project, :any, default: nil
 
   def detail_header(assigns) do
     ~H"""
@@ -54,6 +55,7 @@ defmodule MastWeb.ServerLive.Header do
         <h1 class="text-[22px] font-bold text-[var(--mast-font-primary)] leading-none">
           {@server.name}
         </h1>
+        <.ui_project_badge :if={@project} name={@project.name} color={@project.color} />
         <p class="text-[13px] text-[var(--mast-font-secondary)] font-mono">
           {@server.host} · {@server.os_id || "—"} · {last_seen(@server)}
         </p>

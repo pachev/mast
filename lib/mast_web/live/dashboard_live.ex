@@ -2,7 +2,7 @@ defmodule MastWeb.DashboardLive do
   use MastWeb, :live_view
 
   alias Mast.Fleet
-  alias Mast.Fleet.Server
+  alias Mast.Fleet.{Project, Projects, Server}
   alias Mast.Keys
   alias Mast.Keys.PrivateKey
   alias Mast.Workers.ConnectionCheck
@@ -19,9 +19,13 @@ defmodule MastWeb.DashboardLive do
      |> assign(:filter, "")
      |> assign(:servers, servers)
      |> assign(:keys, [])
+     |> assign(:projects, Projects.list_projects())
+     |> assign(:collapsed_groups, MapSet.new())
      |> assign(:form, nil)
      |> assign(:key_form, nil)
-     |> assign(:show_new_key, false)}
+     |> assign(:show_new_key, false)
+     |> assign(:project_form, nil)
+     |> assign(:show_new_project, false)}
   end
 
   @impl true
@@ -53,6 +57,8 @@ defmodule MastWeb.DashboardLive do
     |> assign(:form, nil)
     |> assign(:show_new_key, false)
     |> assign(:key_form, nil)
+    |> assign(:show_new_project, false)
+    |> assign(:project_form, nil)
   end
 
   defp apply_action(socket, :new, _params) do
@@ -61,8 +67,11 @@ defmodule MastWeb.DashboardLive do
     socket
     |> assign(:form, to_form(cs, as: :server))
     |> assign(:keys, Keys.list_keys())
+    |> assign(:projects, Projects.list_projects())
     |> assign(:show_new_key, false)
     |> assign(:key_form, nil)
+    |> assign(:show_new_project, false)
+    |> assign(:project_form, nil)
   end
 
   @impl true
@@ -97,6 +106,17 @@ defmodule MastWeb.DashboardLive do
 
   def handle_event("filter", %{"q" => q}, socket) do
     {:noreply, assign(socket, :filter, q)}
+  end
+
+  def handle_event("toggle-project-group", %{"id" => id}, socket) do
+    collapsed =
+      if MapSet.member?(socket.assigns.collapsed_groups, id) do
+        MapSet.delete(socket.assigns.collapsed_groups, id)
+      else
+        MapSet.put(socket.assigns.collapsed_groups, id)
+      end
+
+    {:noreply, assign(socket, :collapsed_groups, collapsed)}
   end
 
   def handle_event("cancel", _, socket) do
@@ -135,7 +155,7 @@ defmodule MastWeb.DashboardLive do
 
         form =
           socket.assigns.form
-          |> server_form_with_key(key.id)
+          |> server_form_with(:private_key_id, key.id)
 
         {:noreply,
          socket
@@ -149,17 +169,66 @@ defmodule MastWeb.DashboardLive do
     end
   end
 
+  def handle_event("toggle_new_project", _, socket) do
+    show? = not socket.assigns.show_new_project
+
+    project_form =
+      if show? do
+        to_form(Projects.change_project(%Project{}), as: :project)
+      else
+        nil
+      end
+
+    {:noreply,
+     socket
+     |> assign(:show_new_project, show?)
+     |> assign(:project_form, project_form)}
+  end
+
+  def handle_event("validate_project", %{"project" => params}, socket) do
+    cs =
+      %Project{}
+      |> Projects.change_project(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :project_form, to_form(cs, as: :project))}
+  end
+
+  def handle_event("save_project", %{"project" => params}, socket) do
+    case Projects.create_project(params) do
+      {:ok, project} ->
+        projects = Projects.list_projects()
+
+        form =
+          socket.assigns.form
+          |> server_form_with(:project_id, project.id)
+
+        {:noreply,
+         socket
+         |> assign(:projects, projects)
+         |> assign(:form, form)
+         |> assign(:show_new_project, false)
+         |> assign(:project_form, nil)}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :project_form, to_form(cs, as: :project))}
+    end
+  end
+
   # --- Render ---------------------------------------------------------------
 
   @impl true
   def render(assigns) do
     visible = filtered(assigns.servers, assigns.filter)
     stats = fleet_stats(assigns.servers)
+    {grouped, ungrouped} = group_by_project(visible, assigns.projects)
 
     assigns =
       assigns
       |> assign(:visible_servers, visible)
       |> assign(:stats, stats)
+      |> assign(:grouped, grouped)
+      |> assign(:ungrouped, ungrouped)
 
     ~H"""
     <Layouts.app flash={@flash} active="dashboard" page_title={@page_title}>
@@ -183,7 +252,7 @@ defmodule MastWeb.DashboardLive do
           value={@stats.updates}
           tone={if @stats.updates > 0, do: "warning", else: "default"}
         />
-        <.ui_stat label="Seen Recently" value={@stats.seen_recently} />
+        <.ui_stat label="Releases" value={@stats.releases} />
       </section>
 
       <section class="mb-4">
@@ -208,11 +277,40 @@ defmodule MastWeb.DashboardLive do
           No servers match "{@filter}".
         </div>
 
-        <div
-          :if={@visible_servers != []}
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
-        >
-          <.ui_server_card :for={s <- @visible_servers} server={s} />
+        <div :if={@visible_servers != []} class="space-y-5">
+          <div :for={{project, members} <- @grouped} class="space-y-3">
+            <.ui_project_group_header
+              name={project.name}
+              color={project.color}
+              count={length(members)}
+              expanded?={not MapSet.member?(@collapsed_groups, project.id)}
+              toggle={%{"phx-click" => "toggle-project-group", "phx-value-id" => project.id}}
+            />
+            <div
+              :if={not MapSet.member?(@collapsed_groups, project.id)}
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+            >
+              <.ui_server_card :for={s <- members} server={s} />
+            </div>
+          </div>
+
+          <div :if={@ungrouped != []} class="space-y-3">
+            <div
+              :if={@grouped != []}
+              class="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 -mx-2 sm:-mx-3 select-none"
+            >
+              <span class="font-mono text-sm font-semibold text-[var(--mast-font-secondary)] truncate min-w-0">
+                Ungrouped
+              </span>
+              <span class="flex-1" />
+              <span class="text-xs text-[var(--mast-font-tertiary)] tabular-nums whitespace-nowrap">
+                {length(@ungrouped)} {if length(@ungrouped) == 1, do: "server", else: "servers"}
+              </span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <.ui_server_card :for={s <- @ungrouped} server={s} />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -252,6 +350,22 @@ defmodule MastWeb.DashboardLive do
           >
             {if @show_new_key, do: "Cancel adding new key", else: "Add new key"}
           </button>
+
+          <.input
+            field={@form[:project_id]}
+            type="select"
+            label="Project"
+            prompt={if @projects == [], do: "No projects yet", else: "— none —"}
+            options={Enum.map(@projects, &{&1.name, &1.id})}
+          />
+
+          <button
+            type="button"
+            phx-click="toggle_new_project"
+            class="text-xs text-[var(--mast-accent)] hover:underline"
+          >
+            {if @show_new_project, do: "Cancel adding new project", else: "Add new project"}
+          </button>
         </.form>
 
         <div :if={@show_new_key} class="mt-3 pt-3 border-t border-[var(--mast-border)]">
@@ -281,6 +395,31 @@ defmodule MastWeb.DashboardLive do
           </.form>
         </div>
 
+        <div :if={@show_new_project} class="mt-3 pt-3 border-t border-[var(--mast-border)]">
+          <.form
+            for={@project_form}
+            id="new-project-form"
+            phx-change="validate_project"
+            phx-submit="save_project"
+            class="space-y-2"
+          >
+            <.input field={@project_form[:name]} label="Project name" placeholder="blog" required />
+            <.input
+              field={@project_form[:description]}
+              label="Description (optional)"
+              placeholder="Customer-facing blog stack"
+            />
+            <.input
+              field={@project_form[:color]}
+              type="select"
+              label="Color (optional)"
+              prompt="— none —"
+              options={Enum.map(Project.colors(), &{&1, &1})}
+            />
+            <.ui_button type="submit" form="new-project-form">Save project</.ui_button>
+          </.form>
+        </div>
+
         <:footer>
           <.ui_button variant="secondary" phx-click={Phoenix.LiveView.JS.patch(~p"/")}>
             Cancel
@@ -305,19 +444,25 @@ defmodule MastWeb.DashboardLive do
     end)
   end
 
+  defp group_by_project(servers, projects) do
+    by_project = Enum.group_by(servers, & &1.project_id)
+
+    grouped =
+      projects
+      |> Enum.map(fn p -> {p, Map.get(by_project, p.id, [])} end)
+      |> Enum.reject(fn {_p, members} -> members == [] end)
+
+    ungrouped = Map.get(by_project, nil, [])
+    {grouped, ungrouped}
+  end
+
   defp fleet_stats(servers) do
     %{
       total: length(servers),
       online: Enum.count(servers, &(&1.status == "up")),
       updates: Enum.reduce(servers, 0, fn s, acc -> acc + (s.updates_available || 0) end),
-      seen_recently: Enum.count(servers, &seen_recently?/1)
+      releases: Fleet.count_all_releases()
     }
-  end
-
-  defp seen_recently?(%{last_seen_at: nil}), do: false
-
-  defp seen_recently?(%{last_seen_at: t}) do
-    DateTime.diff(DateTime.utc_now(), t, :second) < 600
   end
 
   defp fleet_subtitle(%{total: 0}), do: "Register your first server below"
@@ -334,11 +479,11 @@ defmodule MastWeb.DashboardLive do
     |> Enum.map(fn {_field, {msg, _opts}} -> msg end)
   end
 
-  defp server_form_with_key(form, key_id) do
+  defp server_form_with(form, field, value) do
     params =
       form.params
       |> Map.new()
-      |> Map.put("private_key_id", to_string(key_id))
+      |> Map.put(to_string(field), to_string(value))
 
     %Server{}
     |> Fleet.change_server(params)

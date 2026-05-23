@@ -22,30 +22,59 @@ defmodule MastWeb.Components.UI.Domain do
       navigate={"/servers/#{@server.id}"}
       class={[
         "block bg-[var(--mast-bg-card)] border border-[var(--mast-border)]",
-        "rounded-[var(--radius-box)] p-4 shadow-sm transition-colors",
+        "rounded-[var(--radius-box)] p-4 sm:p-5 shadow-sm transition-colors",
         "hover:border-[var(--mast-accent)] hover:bg-[var(--mast-bg-card-hover)]",
         @class
       ]}
     >
-      <div class="flex items-center justify-between gap-3 mb-3">
-        <div class="flex items-center gap-2 min-w-0">
-          <.ui_status_dot status={@server.status} />
-          <span class="font-mono text-sm font-medium text-[var(--mast-font-primary)] truncate">
-            {@server.name}
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <span
+            class="hidden sm:inline-flex size-9 rounded-md bg-[var(--mast-bg-secondary)] items-center justify-center shrink-0"
+            aria-hidden="true"
+          >
+            <span class="hero-server size-4 text-[var(--mast-font-tertiary)]" />
           </span>
+          <div class="min-w-0">
+            <div class="font-mono text-sm font-semibold text-[var(--mast-font-primary)] truncate">
+              {@server.name}
+            </div>
+            <div class="text-[11px] text-[var(--mast-font-tertiary)] font-mono truncate">
+              {@server.host}
+            </div>
+          </div>
         </div>
         <.ui_badge variant={server_badge_variant(@server.status)}>
           {server_status_label(@server.status)}
         </.ui_badge>
       </div>
 
-      <div class="space-y-2">
+      <div class="flex items-center gap-2 flex-wrap text-[11px] text-[var(--mast-font-tertiary)] mb-3 min-w-0">
+        <span class="truncate">{@server.os_id || "—"}</span>
+        <span aria-hidden="true">·</span>
+        <span class="truncate">{card_last_seen(@server.last_seen_at)}</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
         <.ui_metric label="CPU" value={@server.cpu} />
         <.ui_metric label="MEM" value={@server.memory} />
         <.ui_metric label="DISK" value={@server.disk} />
       </div>
     </.link>
     """
+  end
+
+  defp card_last_seen(nil), do: "never seen"
+
+  defp card_last_seen(%DateTime{} = t) do
+    diff = DateTime.diff(DateTime.utc_now(), t, :second)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3600 -> "#{div(diff, 60)}m ago"
+      diff < 86_400 -> "#{div(diff, 3600)}h ago"
+      true -> "#{div(diff, 86_400)}d ago"
+    end
   end
 
   defp server_badge_variant("up"), do: "online"
@@ -356,4 +385,121 @@ defmodule MastWeb.Components.UI.Domain do
   defp audit_label("failure"), do: "failure"
   defp audit_label("key-create"), do: "key.create"
   defp audit_label(_), do: "action"
+
+  @doc """
+  Collapsible group header used to group servers by Project on the
+  Fleet page. Matches the `ProjectGroup/Header` pen component.
+
+      <.ui_project_group_header
+        name="blog"
+        color="emerald"
+        count={2}
+        expanded?={true}
+        toggle={%{"phx-click" => "toggle-project", "phx-value-id" => p.id}}
+      />
+
+  `toggle` is a map of HTML attributes (typically `phx-click`/`phx-value-*`)
+  spread onto the clickable row. Pass an empty map for a static header.
+  """
+  attr :name, :string, required: true
+  attr :color, :any, default: nil
+  attr :count, :integer, required: true
+  attr :expanded?, :boolean, default: true
+  attr :toggle, :map, default: %{}
+
+  def ui_project_group_header(assigns) do
+    ~H"""
+    <div
+      {@toggle}
+      role={if @toggle == %{}, do: nil, else: "button"}
+      tabindex={if @toggle == %{}, do: nil, else: "0"}
+      aria-expanded={if @toggle == %{}, do: nil, else: to_string(@expanded?)}
+      class={[
+        "flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 -mx-2 sm:-mx-3 rounded-[var(--radius-field)]",
+        "select-none",
+        if(@toggle == %{},
+          do: "cursor-default",
+          else: "cursor-pointer hover:bg-[var(--mast-bg-card-hover)]"
+        )
+      ]}
+    >
+      <span
+        class={[
+          "hero-chevron-down size-4 shrink-0 text-[var(--mast-font-tertiary)] transition-transform",
+          if(@expanded?, do: "rotate-0", else: "-rotate-90")
+        ]}
+        aria-hidden="true"
+      />
+      <span
+        class={["inline-block size-2.5 rounded-full shrink-0", project_color_bg(@color)]}
+        aria-hidden="true"
+      />
+      <span class="font-mono text-sm font-semibold text-[var(--mast-font-primary)] truncate min-w-0">
+        {@name}
+      </span>
+      <span class="flex-1" />
+      <span class="text-xs text-[var(--mast-font-tertiary)] tabular-nums whitespace-nowrap">
+        {@count} {if @count == 1, do: "server", else: "servers"}
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
+  Small Project chip — used as a badge near the Server detail header
+  and inside server cards when grouping is disabled. Color tints from
+  the preset palette.
+
+      <.ui_project_badge name="blog" color="emerald" />
+  """
+  attr :name, :string, required: true
+  attr :color, :any, default: nil
+  attr :class, :any, default: nil
+
+  def ui_project_badge(assigns) do
+    ~H"""
+    <span
+      class={[
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full",
+        "text-[11px] font-medium whitespace-nowrap max-w-[12rem] truncate",
+        project_badge_classes(@color),
+        @class
+      ]}
+      title={"Project: " <> @name}
+    >
+      <span
+        class={["inline-block size-1.5 rounded-full shrink-0", project_color_bg(@color)]}
+        aria-hidden="true"
+      />
+      {@name}
+    </span>
+    """
+  end
+
+  @doc "Tailwind background class for a Project color preset."
+  def project_color_bg(nil), do: "bg-[var(--mast-font-tertiary)]"
+  def project_color_bg(""), do: "bg-[var(--mast-font-tertiary)]"
+  def project_color_bg("slate"), do: "bg-slate-500"
+  def project_color_bg("indigo"), do: "bg-indigo-500"
+  def project_color_bg("emerald"), do: "bg-emerald-500"
+  def project_color_bg("amber"), do: "bg-amber-500"
+  def project_color_bg("rose"), do: "bg-rose-500"
+  def project_color_bg("violet"), do: "bg-violet-500"
+  def project_color_bg(_), do: "bg-[var(--mast-font-tertiary)]"
+
+  defp project_badge_classes(nil),
+    do: "bg-[var(--mast-bg-secondary)] text-[var(--mast-font-secondary)]"
+
+  defp project_badge_classes(""),
+    do: "bg-[var(--mast-bg-secondary)] text-[var(--mast-font-secondary)]"
+
+  defp project_badge_classes("slate"), do: "bg-slate-100 text-slate-700"
+  defp project_badge_classes("indigo"), do: "bg-indigo-100 text-indigo-700"
+  defp project_badge_classes("emerald"), do: "bg-emerald-100 text-emerald-700"
+  defp project_badge_classes("amber"), do: "bg-amber-100 text-amber-700"
+  defp project_badge_classes("rose"), do: "bg-rose-100 text-rose-700"
+  defp project_badge_classes("violet"), do: "bg-violet-100 text-violet-700"
+
+  defp project_badge_classes(_),
+    do: "bg-[var(--mast-bg-secondary)] text-[var(--mast-font-secondary)]"
 end

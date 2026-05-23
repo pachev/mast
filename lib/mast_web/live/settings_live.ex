@@ -11,10 +11,14 @@ defmodule MastWeb.SettingsLive do
   """
   use MastWeb, :live_view
 
+  import MastWeb.SettingsLive.ProjectsTab, only: [projects_tab: 1]
+
+  alias Mast.Fleet.Project
+  alias Mast.Fleet.Projects
   alias Mast.Keys
   alias Mast.Keys.PrivateKey
 
-  @tabs ~w(general keys)
+  @tabs ~w(general keys projects)
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,13 +28,24 @@ defmodule MastWeb.SettingsLive do
      |> assign(:tab, "general")
      |> assign(:show_new_key, false)
      |> assign(:key_form, nil)
-     |> load_keys()}
+     |> assign(:show_new_project, false)
+     |> assign(:project_form, nil)
+     |> assign(:editing_project_id, nil)
+     |> assign(:edit_project_form, nil)
+     |> load_keys()
+     |> load_projects()}
   end
 
   defp load_keys(socket) do
     socket
     |> assign(:keys, Keys.list_keys())
     |> assign(:server_counts, Keys.server_counts())
+  end
+
+  defp load_projects(socket) do
+    socket
+    |> assign(:projects, Projects.list_projects())
+    |> assign(:project_server_counts, Projects.server_counts())
   end
 
   @impl true
@@ -98,6 +113,107 @@ defmodule MastWeb.SettingsLive do
     end
   end
 
+  # --- Project events ------------------------------------------------------
+
+  def handle_event("toggle-new-project", _, socket) do
+    show? = not socket.assigns.show_new_project
+
+    project_form =
+      if show? do
+        to_form(Projects.change_project(%Project{}), as: :project)
+      else
+        nil
+      end
+
+    {:noreply,
+     socket
+     |> assign(:show_new_project, show?)
+     |> assign(:project_form, project_form)}
+  end
+
+  def handle_event("validate-project", %{"project" => params}, socket) do
+    cs =
+      %Project{}
+      |> Projects.change_project(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :project_form, to_form(cs, as: :project))}
+  end
+
+  def handle_event("save-project", %{"project" => params}, socket) do
+    case Projects.create_project(params) do
+      {:ok, _p} ->
+        {:noreply,
+         socket
+         |> assign(:show_new_project, false)
+         |> assign(:project_form, nil)
+         |> put_flash(:info, "Project added.")
+         |> load_projects()}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :project_form, to_form(cs, as: :project))}
+    end
+  end
+
+  def handle_event("edit-project", %{"id" => id}, socket) do
+    project = Projects.get_project!(id)
+
+    {:noreply,
+     socket
+     |> assign(:editing_project_id, project.id)
+     |> assign(:edit_project_form, to_form(Projects.change_project(project), as: :project))}
+  end
+
+  def handle_event("cancel-edit-project", _, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing_project_id, nil)
+     |> assign(:edit_project_form, nil)}
+  end
+
+  def handle_event("validate-edit-project", %{"project" => params}, socket) do
+    project = Projects.get_project!(socket.assigns.editing_project_id)
+
+    cs =
+      project
+      |> Projects.change_project(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :edit_project_form, to_form(cs, as: :project))}
+  end
+
+  def handle_event("update-project", %{"project" => params}, socket) do
+    project = Projects.get_project!(socket.assigns.editing_project_id)
+
+    case Projects.update_project(project, params) do
+      {:ok, _p} ->
+        {:noreply,
+         socket
+         |> assign(:editing_project_id, nil)
+         |> assign(:edit_project_form, nil)
+         |> put_flash(:info, "Project updated.")
+         |> load_projects()}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :edit_project_form, to_form(cs, as: :project))}
+    end
+  end
+
+  def handle_event("delete-project", %{"id" => id}, socket) do
+    project = Projects.get_project!(id)
+
+    case Projects.delete_project(project) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Project #{project.name} removed.")
+         |> load_projects()}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Could not remove project.")}
+    end
+  end
+
   # --- Render ---------------------------------------------------------------
 
   @impl true
@@ -120,6 +236,7 @@ defmodule MastWeb.SettingsLive do
         <.ui_tabs active={@tab} class="mt-4 border-b-0">
           <:tab key="general" patch={~p"/settings?tab=general"}>General</:tab>
           <:tab key="keys" patch={~p"/settings?tab=keys"}>SSH Keys</:tab>
+          <:tab key="projects" patch={~p"/settings?tab=projects"}>Projects</:tab>
         </.ui_tabs>
       </header>
 
@@ -130,6 +247,15 @@ defmodule MastWeb.SettingsLive do
             server_counts={@server_counts}
             show_new_key={@show_new_key}
             key_form={@key_form}
+          />
+        <% "projects" -> %>
+          <.projects_tab
+            projects={@projects}
+            server_counts={@project_server_counts}
+            show_new_project={@show_new_project}
+            project_form={@project_form}
+            editing_project_id={@editing_project_id}
+            edit_project_form={@edit_project_form}
           />
         <% _ -> %>
           <.ui_card padded={false}>

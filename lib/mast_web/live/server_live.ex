@@ -6,7 +6,7 @@ defmodule MastWeb.ServerLive do
   use MastWeb, :live_view
 
   alias Mast.{Apps, Fleet}
-  alias Mast.Fleet.Release
+  alias Mast.Fleet.{Projects, Release}
   alias Mast.Workers.{ApplyUpdates, AppProbe, ConnectionCheck, PatchScan}
 
   alias MastWeb.ServerLive.{
@@ -48,6 +48,9 @@ defmodule MastWeb.ServerLive do
      |> assign(:show_system_apps?, false)
      |> assign(:confirm_delete?, false)
      |> assign(:confirm_name, "")
+     |> assign(:projects, Projects.list_projects())
+     |> assign(:project, load_project(server))
+     |> assign(:project_form, project_form(server))
      |> assign(:updates_page, 1)
      |> assign(:updates_page_size, 10)
      |> assign(:updates_filter, "")
@@ -348,6 +351,43 @@ defmodule MastWeb.ServerLive do
      |> assign(:running?, false)}
   end
 
+  def handle_event("update-project", %{"server" => params}, socket) do
+    server = socket.assigns.server
+    new_id = blank_to_nil(params["project_id"])
+
+    result =
+      case {server.project_id, new_id} do
+        {same, same} -> {:ok, server}
+        {_, nil} -> Projects.unassign_server(server)
+        {_, id} -> Projects.assign_server(server, Projects.get_project!(id))
+      end
+
+    case result do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign(:server, updated)
+         |> assign(:project, load_project(updated))
+         |> assign(:project_form, project_form(updated))
+         |> assign(:activity, load_activity(updated.id))
+         |> put_flash(:info, "Project saved.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Could not update project.")}
+    end
+  end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(v), do: v
+
+  defp project_form(server) do
+    to_form(Fleet.change_server(server, %{}), as: :server)
+  end
+
+  defp load_project(%{project_id: nil}), do: nil
+  defp load_project(%{project_id: id}), do: Projects.get_project!(id)
+
   defp enqueue_apply(socket, extra) do
     args =
       Map.merge(extra, %{
@@ -411,6 +451,7 @@ defmodule MastWeb.ServerLive do
         running?={@running?}
         probing?={@probing?}
         scan_error={@scan_error}
+        project={@project}
       />
 
       <%= case @tab do %>
@@ -447,6 +488,8 @@ defmodule MastWeb.ServerLive do
             server={@server}
             confirm_delete?={@confirm_delete?}
             confirm_name={@confirm_name}
+            projects={@projects}
+            project_form={@project_form}
           />
       <% end %>
     </Layouts.app>
