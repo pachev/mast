@@ -14,6 +14,8 @@ defmodule MastWeb.ServerLive.OverviewTab do
   attr :apps, :list, required: true
   attr :releases, :list, required: true
   attr :activity, :list, required: true
+  attr :range, :string, required: true
+  attr :series, :map, required: true
 
   def render(assigns) do
     ~H"""
@@ -44,6 +46,68 @@ defmodule MastWeb.ServerLive.OverviewTab do
         value={load_avg_label(@server)}
         sub={load_avg_sub(@server)}
       />
+    </section>
+
+    <section class="mb-5">
+      <form
+        id="range-form"
+        phx-change="set_range"
+        class="flex items-center justify-between gap-3 mb-3"
+      >
+        <h2 class="text-base font-semibold text-[var(--mast-font-primary)]">
+          Metrics history
+        </h2>
+        <label class="flex items-center gap-2 text-xs text-[var(--mast-font-tertiary)]">
+          Range
+          <select
+            name="range"
+            class="bg-[var(--mast-bg-secondary)] text-[var(--mast-font-primary)] border border-[var(--mast-border)] rounded-[var(--radius-sm)] px-2 py-1 text-xs"
+          >
+            <option value="1h" selected={@range == "1h"}>Last 1h</option>
+            <option value="12h" selected={@range == "12h"}>Last 12h</option>
+            <option value="1d" selected={@range == "1d"}>Last 24h</option>
+            <option value="7d" selected={@range == "7d"}>Last 7d</option>
+            <option value="30d" selected={@range == "30d"}>Last 30d</option>
+          </select>
+        </label>
+      </form>
+
+      <div class="grid lg:grid-cols-2 gap-3">
+        <.ui_chart_card title="CPU over time">
+          <:badge>{range_label(@range)}</:badge>
+          <.line_chart points={@series["cpu"]} color="blue" label="CPU %" unit="%" />
+        </.ui_chart_card>
+        <.ui_chart_card title="Memory over time">
+          <:badge>{range_label(@range)}</:badge>
+          <.line_chart points={@series["memory"]} color="purple" label="Memory %" unit="%" />
+        </.ui_chart_card>
+        <.ui_chart_card title="Disk over time">
+          <:badge>{range_label(@range)}</:badge>
+          <.line_chart points={@series["disk_root"]} color="green" label="Disk %" unit="%" />
+        </.ui_chart_card>
+        <.ui_chart_card title="Load avg (1m)">
+          <:badge>{range_label(@range)}</:badge>
+          <.line_chart points={@series["load_1"]} color="blue" label="Load 1m" />
+        </.ui_chart_card>
+        <.ui_chart_card title="Bandwidth (rx + tx)">
+          <:badge>{range_label(@range)}</:badge>
+          <.line_chart
+            points={combine_pair(@series["rx_bytes_s"], @series["tx_bytes_s"])}
+            color="purple"
+            label="MB/s"
+            unit=" MB/s"
+          />
+        </.ui_chart_card>
+        <.ui_chart_card title="Disk I/O (read + write)">
+          <:badge>{range_label(@range)}</:badge>
+          <.line_chart
+            points={combine_pair(@series["io_r_bytes_s"], @series["io_w_bytes_s"])}
+            color="green"
+            label="MB/s"
+            unit=" MB/s"
+          />
+        </.ui_chart_card>
+      </div>
     </section>
 
     <section class="grid lg:grid-cols-2 gap-5">
@@ -123,6 +187,32 @@ defmodule MastWeb.ServerLive.OverviewTab do
   end
 
   defp present_activity(events), do: Enum.map(events, &Presenter.present/1)
+
+  defp range_label("1h"), do: "Last 1h"
+  defp range_label("12h"), do: "Last 12h"
+  defp range_label("1d"), do: "Last 24h"
+  defp range_label("7d"), do: "Last 7d"
+  defp range_label("30d"), do: "Last 30d"
+  defp range_label(_), do: ""
+
+  # Sums two byte-rate series timepoint-by-timepoint, converting bytes/s to
+  # decimal MB/s for display.
+  defp combine_pair(nil, nil), do: []
+  defp combine_pair(a, nil), do: to_mb_s(a || [])
+  defp combine_pair(nil, b), do: to_mb_s(b || [])
+
+  defp combine_pair(a, b) do
+    by_t = Map.new(b, &{&1.t, &1.v})
+
+    Enum.map(a, fn %{t: t, v: v} ->
+      total = v + Map.get(by_t, t, 0)
+      %{t: t, v: total / 1_000_000}
+    end)
+  end
+
+  defp to_mb_s(points) do
+    Enum.map(points, fn %{t: t, v: v} -> %{t: t, v: v / 1_000_000} end)
+  end
 
   defp cpu_sub(nil), do: "no data"
   defp cpu_sub(n) when is_number(n) and n >= 80, do: "high load"

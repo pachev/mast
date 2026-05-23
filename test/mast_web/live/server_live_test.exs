@@ -243,6 +243,58 @@ defmodule MastWeb.ServerLiveTest do
       assert_raise Ecto.NoResultsError, fn -> Mast.Fleet.get_server!(server.id) end
     end
 
+    test "overview renders charts with default range 1h", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "charted", host: "10.0.0.80"})
+
+      now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      for i <- 0..4 do
+        at = DateTime.add(now, -i * 60, :second)
+
+        {:ok, _} =
+          Fleet.record_sample(server, %{
+            bucket: "1m",
+            recorded_at: at,
+            stats: %{"cpu" => i * 10.0, "memory" => 50.0}
+          })
+      end
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+
+      assert html =~ "CPU over time"
+      assert html =~ "<polyline"
+      # Default range is 1h.
+      assert html =~ ~s(value="1h" selected)
+    end
+
+    test "overview renders empty-state when there are no samples", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "nochart", host: "10.0.0.81"})
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+
+      assert html =~ "Collecting first sample"
+    end
+
+    test "changing range to 7d re-queries with 120m bucket", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "ranged", host: "10.0.0.82"})
+
+      old =
+        DateTime.add(DateTime.utc_now(), -3 * 86_400, :second) |> DateTime.truncate(:microsecond)
+
+      {:ok, _} =
+        Fleet.record_sample(server, %{
+          bucket: "120m",
+          recorded_at: old,
+          stats: %{"cpu" => 42.0}
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/servers/#{server}")
+
+      html = view |> element("#range-form") |> render_change(%{"range" => "7d"})
+      assert html =~ ~s(value="7d" selected)
+      assert html =~ "<polyline"
+    end
+
     test "dashboard removes the row on :server_deleted broadcast", %{conn: conn} do
       {:ok, server} = Fleet.create_server(%{name: "ghost", host: "10.0.0.66"})
 

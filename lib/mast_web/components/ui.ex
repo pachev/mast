@@ -39,6 +39,7 @@ defmodule MastWeb.Components.UI do
       import MastWeb.Components.UI.Data
       import MastWeb.Components.UI.Table
       import MastWeb.Components.UI.Domain
+      import MastWeb.Components.UI.Charts
       import MastWeb.Components.UI.JS
     end
   end

@@ -53,11 +53,47 @@ defmodule MastWeb.ServerLive do
      |> assign(:updates_filter, "")
      |> stream(:log, [])
      |> assign(:log_count, 0)
-     |> assign(:activity, load_activity(server.id))}
+     |> assign(:activity, load_activity(server.id))
+     |> assign_series("1h")}
   end
 
   defp load_activity(server_id) do
     Mast.Audit.list_for_subject("Server", server_id, 10)
+  end
+
+  @ranges %{
+    "1h" => {"1m", 3_600},
+    "12h" => {"10m", 12 * 3_600},
+    "1d" => {"20m", 86_400},
+    "7d" => {"120m", 7 * 86_400},
+    "30d" => {"480m", 30 * 86_400}
+  }
+
+  def ranges, do: @ranges
+
+  defp assign_series(socket, range) do
+    {bucket, seconds} = Map.fetch!(@ranges, range)
+    since = DateTime.utc_now() |> DateTime.add(-seconds, :second)
+    rows = Mast.Fleet.list_stats(socket.assigns.server.id, bucket, since)
+
+    socket
+    |> assign(:range, range)
+    |> assign(:bucket, bucket)
+    |> assign(:series, build_series(rows))
+  end
+
+  defp build_series(rows) do
+    metrics = ~w(cpu memory disk_root rx_bytes_s tx_bytes_s io_r_bytes_s io_w_bytes_s load_1)
+
+    Map.new(metrics, fn key ->
+      points =
+        Enum.map(rows, fn r ->
+          %{t: r.recorded_at, v: r.stats[key]}
+        end)
+        |> Enum.filter(&is_number(&1.v))
+
+      {key, points}
+    end)
   end
 
   @impl true
@@ -284,6 +320,10 @@ defmodule MastWeb.ServerLive do
      |> assign(:updates_page, 1)}
   end
 
+  def handle_event("set_range", %{"range" => range}, socket) when is_map_key(@ranges, range) do
+    {:noreply, assign_series(socket, range)}
+  end
+
   def handle_event("clear_log", _, socket) do
     {:noreply,
      socket
@@ -364,6 +404,8 @@ defmodule MastWeb.ServerLive do
             apps={@apps}
             releases={@releases}
             activity={@activity}
+            range={@range}
+            series={@series}
           />
         <% "releases" -> %>
           <ReleasesTab.render
