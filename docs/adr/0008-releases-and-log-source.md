@@ -225,3 +225,88 @@ Server. Mirrors how Checks and Probes are already treated.
 - **Retention or rate limits on `release.updated` events.** If
   config-churn becomes noisy in audit, ADR 0007's prune job inherits
   the problem.
+
+---
+
+## Amendment (2026-05-23): Effective Handle uniqueness moves to the database
+
+### Context
+
+ADR 0008 said Effective Handle uniqueness is "enforced at the changeset
+level." That check (`Mast.Fleet.Release.taken?/3`) loads every Release on
+the Server and compares handles in Elixir. Two problems surfaced during an
+efficiency audit:
+
+1. It is racy. Two concurrent inserts both pass `taken?/3`, both commit,
+   and the Server ends up with two Releases sharing an Effective Handle —
+   the exact state the ADR says can "never" happen.
+2. It is an unindexed in-memory scan, and the matching read path
+   (`Fleet.get_release/2`) does the same `Repo.all` + `Enum.find`.
+
+The partial unique index on `(server_id, name) WHERE name IS NOT NULL`
+catches explicit-Name collisions but is blind to the derived case: a
+Release named `foo` and a Release with `release_command = /opt/foo/bin/foo`
+both have Effective Handle `foo`, and the index does not see it.
+
+### Decision
+
+Effective Handle uniqueness is a true invariant, enforced by the database.
+
+- Add a stored generated column `effective_handle` to `releases`:
+
+  ```sql
+  effective_handle text GENERATED ALWAYS AS (
+    NULLIF(
+      COALESCE(
+        NULLIF(name, ''),
+        regexp_replace(regexp_replace(release_command, '/+$', ''), '^.*/', '')
+      ),
+    '')
+  ) STORED
+  ```
+
+  The double `regexp_replace` strips trailing slashes before taking the
+  basename, so the column matches `Path.basename/1` exactly (a naive
+  `^.*/` regex diverges on trailing-slash inputs). The outer `NULLIF`
+  collapses an empty derived basename to `NULL` = no handle.
+
+- Add `unique_index(:releases, [:server_id, :effective_handle])`. Postgres
+  treats `NULL` as distinct, so logs-only Releases (no Name, no
+  `release_command`, handle `NULL`) never collide — matching the ADR's
+  rule that a logs-only Release is valid.
+
+- Drop the now-redundant `unique_index(:releases, [:server_id, :name]
+  WHERE name IS NOT NULL)`. The effective_handle index strictly subsumes
+  it (a Name, when set, *is* the Effective Handle).
+
+- `Mast.Fleet.Release.effective_handle/1` returns `nil` (not `""`) when the
+  derived basename is empty, so the app and the column agree exactly.
+
+- `validate_release_command/1` additionally rejects a trailing slash:
+  `release_command` points at an executable `bin/<release>`, so a trailing
+  slash is meaningless. The generated column's slash-stripping is the
+  belt-and-suspenders guard for any pre-existing backfilled rows.
+
+### What stays as it was
+
+- `taken?/3` is kept, reframed as the **UX layer**, not the guarantee. It
+  fires first in the common (non-concurrent) case and produces the
+  situation-aware message ("set an explicit name"). It is rewritten to a
+  single `Repo.exists?` on the new column rather than loading rows.
+- The changeset gains a `unique_constraint` on the new index as the
+  **race backstop**, with a generic message. Under a true concurrent race
+  it is what actually fires.
+
+So enforcement is now layered: `taken?/3` for the message, the DB index
+for the invariant. The ADR's original "neither wins" rule is unchanged in
+meaning; only its enforcement mechanism is strengthened.
+
+### Consequences
+
+- `Fleet.get_release/2` becomes a `Repo.one` filtered on `effective_handle`
+  in SQL instead of `Repo.all` + `Enum.find`.
+- One forward-only migration: add column, add unique index, drop the old
+  partial name index. Consistent with this ADR's no-rollback stance.
+- `CONTEXT.md` gains an **Effective Handle** term distinct from **Release
+  Name**, and the glossary line that said uniqueness is "enforced at the
+  changeset level" is corrected to state the invariant.

@@ -23,10 +23,16 @@ adds them.
 _Avoid_: app, application, service
 
 **Release Name**:
-The handle an Operator uses to refer to a Release within its Server. If
-the Operator leaves it unset, it derives from the basename of
-`release_command`. Must be unique within its Server.
+The explicit handle an Operator gives a Release. Optional. When set, it
+is the Release's Effective Handle. When unset, the Effective Handle
+derives from `release_command` instead.
 _Avoid_: release id, app name, slug
+
+**Effective Handle**:
+The identifier a Release is known by within its Server: its Release Name
+if set, otherwise the basename of `release_command`. Unique within a
+Server. No two Releases on one Server may share an Effective Handle.
+_Avoid_: name (when you mean the derived value), slug
 
 **Log Source**:
 The kind of log stream a Release exposes. One of `:systemd` (a unit
@@ -151,7 +157,8 @@ _Avoid_: log driver, log handler
 > **Dev:** "Two **Releases** on the same **Server** with the same derived
 > name — what wins?"
 > **PJ:** "Neither. The Operator has to set an explicit **Release Name** on
-> at least one. Uniqueness is enforced at the changeset level."
+> at least one. Two Releases on a Server sharing an effective handle is an
+> invariant the system never allows — not merely a validation it attempts."
 
 ## Flagged ambiguities
 
