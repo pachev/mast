@@ -35,40 +35,46 @@ defmodule MastWeb.ServerLive.UpdatesTab do
       |> assign(:state, state)
 
     ~H"""
-    <.ui_card padded={false}>
-      <:header>
-        <div class="flex items-center justify-between gap-3 w-full">
-          <div>
-            <h2 class="text-base font-semibold text-[var(--mast-font-primary)]">Available Updates</h2>
-            <p class="text-xs text-[var(--mast-font-secondary)] mt-1">
-              <.scan_status_text server={@server} scanning?={@scanning?} scan_error={@scan_error} />
-            </p>
-          </div>
-          <.ui_badge :if={@updates != []} variant="warning">
-            {length(@updates)} packages
-          </.ui_badge>
+    <div class="space-y-6">
+      <div class="flex items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <h2 class="text-lg font-bold text-[var(--mast-font-primary)] leading-tight">
+            Available Updates
+          </h2>
+          <p class="text-[13px] text-[var(--mast-font-secondary)] mt-0.5">
+            <.scan_status_text server={@server} scanning?={@scanning?} scan_error={@scan_error} />
+          </p>
         </div>
-      </:header>
+        <.ui_badge :if={@updates != []} variant="warning" class="shrink-0 mt-1">
+          {length(@updates)} packages
+        </.ui_badge>
+      </div>
 
       <%= case @state do %>
         <% :scanning -> %>
-          <.ui_empty
-            icon="hero-magnifying-glass"
-            title="Scanning…"
-            body="Running apt list --upgradable on the host."
-          />
+          <.ui_card padded={false}>
+            <.ui_empty
+              icon="hero-magnifying-glass"
+              title="Scanning…"
+              body="Running apt list --upgradable on the host."
+            />
+          </.ui_card>
         <% :never_scanned -> %>
-          <.ui_empty
-            icon="hero-magnifying-glass"
-            title="Not scanned yet"
-            body="Click Scan Updates above to check the host for available packages."
-          />
+          <.ui_card padded={false}>
+            <.ui_empty
+              icon="hero-magnifying-glass"
+              title="Not scanned yet"
+              body="Click Scan Updates above to check the host for available packages."
+            />
+          </.ui_card>
         <% :clean -> %>
-          <.ui_empty
-            icon="hero-check-circle"
-            title="All up to date"
-            body="No package updates are available right now."
-          />
+          <.ui_card padded={false}>
+            <.ui_empty
+              icon="hero-check-circle"
+              title="All up to date"
+              body="No package updates are available right now."
+            />
+          </.ui_card>
         <% :has_updates -> %>
           <form id="updates-filter" phx-change="filter-updates" class="contents">
             <.ui_table id="updates-table" rows={@page_rows} size="sm">
@@ -123,7 +129,7 @@ defmodule MastWeb.ServerLive.UpdatesTab do
             </.ui_table>
           </form>
       <% end %>
-    </.ui_card>
+    </div>
     """
   end
 

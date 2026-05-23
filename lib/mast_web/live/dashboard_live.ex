@@ -175,7 +175,7 @@ defmodule MastWeb.DashboardLive do
         </:actions>
       </.ui_page_header>
 
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <.ui_stat label="Total Servers" value={@stats.total} />
         <.ui_stat label="Online" value={@stats.online} tone="online" />
         <.ui_stat
@@ -233,7 +233,7 @@ defmodule MastWeb.DashboardLive do
         >
           <.input field={@form[:name]} label="Name" placeholder="web-1" required />
           <.input field={@form[:host]} label="Host" placeholder="10.0.0.7 or fqdn" required />
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <.input field={@form[:user]} label="SSH user" placeholder="ubuntu" />
             <.input field={@form[:port]} type="number" label="Port" placeholder="22" />
           </div>
