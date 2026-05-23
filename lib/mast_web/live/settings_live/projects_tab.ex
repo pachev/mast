@@ -26,14 +26,18 @@ defmodule MastWeb.SettingsLive.ProjectsTab do
         </span>
         <span class="flex-1" />
         <.ui_button icon="hero-plus" size="sm" phx-click="toggle-new-project">
-          {if @show_new_project, do: "Cancel", else: "Add Project"}
+          Add Project
         </.ui_button>
       </div>
 
-      <div
+      <.ui_modal
         :if={@show_new_project}
-        class="bg-[var(--mast-bg-card)] border border-[var(--mast-border)] rounded-[var(--radius-box)] p-4 sm:p-5"
+        id="new-project-modal"
+        on_cancel={JS.push("toggle-new-project")}
       >
+        <:title>Add a project</:title>
+        <:subtitle>Group servers under a shared label.</:subtitle>
+
         <.form
           for={@project_form}
           id="new-project-form"
@@ -53,14 +57,15 @@ defmodule MastWeb.SettingsLive.ProjectsTab do
             placeholder="Customer-facing blog stack"
           />
           <.color_picker field={@project_form[:color]} />
-          <div class="flex justify-end gap-2 pt-1">
-            <.ui_button type="button" variant="secondary" phx-click="toggle-new-project">
-              Cancel
-            </.ui_button>
-            <.ui_button type="submit" form="new-project-form">Save project</.ui_button>
-          </div>
         </.form>
-      </div>
+
+        <:footer>
+          <.ui_button type="button" variant="secondary" phx-click="toggle-new-project">
+            Cancel
+          </.ui_button>
+          <.ui_button type="submit" form="new-project-form">Save project</.ui_button>
+        </:footer>
+      </.ui_modal>
 
       <%= if @projects == [] do %>
         <div class="bg-[var(--mast-bg-card)] border border-[var(--mast-border)] rounded-[var(--radius-box)] overflow-hidden">
