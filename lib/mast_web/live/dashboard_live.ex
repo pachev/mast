@@ -294,11 +294,22 @@ defmodule MastWeb.DashboardLive do
             </div>
           </div>
 
-          <div
-            :if={@ungrouped != []}
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
-          >
-            <.ui_server_card :for={s <- @ungrouped} server={s} />
+          <div :if={@ungrouped != []} class="space-y-3">
+            <div
+              :if={@grouped != []}
+              class="flex items-center gap-3 pt-2 mt-2 border-t border-[var(--mast-border)]"
+            >
+              <span class="text-xs font-medium uppercase tracking-wide text-[var(--mast-font-tertiary)]">
+                Ungrouped
+              </span>
+              <span class="flex-1 h-px bg-[var(--mast-border)]" />
+              <span class="text-[11px] text-[var(--mast-font-tertiary)] tabular-nums whitespace-nowrap">
+                {length(@ungrouped)} {if length(@ungrouped) == 1, do: "server", else: "servers"}
+              </span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <.ui_server_card :for={s <- @ungrouped} server={s} />
+            </div>
           </div>
         </div>
       </section>
