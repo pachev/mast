@@ -49,6 +49,16 @@ We have a `./components.pen` file with the current UI design. When making
 ui changes, check the pencil mcp to see if the design is already there. 
 If not, STOP and ask for an update before implementing. This keeps the code and design in sync.
 
+**Responsiveness is non-negotiable for new components.** Any new helper
+added to `lib/mast_web/components/ui/*` must work across the full
+breakpoint scale on day one (Tailwind `sm:` / `md:` / `lg:` prefixes on
+layout, padding, font sizes, column counts; `flex-wrap` or
+`grid-cols-1 md:grid-cols-N` instead of fixed widths; `min-w-0 truncate`
+for text in flex children; ≥40px tap targets). Then add the component to
+`/dev/ui` so it can be previewed at multiple widths. Shipping a fixed-
+width component is a sweep waiting to happen — we've already done that
+sweep twice.
+
 
 ## Architecture decisions
 
