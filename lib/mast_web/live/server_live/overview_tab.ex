@@ -16,6 +16,7 @@ defmodule MastWeb.ServerLive.OverviewTab do
   attr :activity, :list, required: true
   attr :range, :string, required: true
   attr :series, :map, required: true
+  attr :latest_sample, :map, default: %{}
 
   def render(assigns) do
     ~H"""
@@ -23,7 +24,7 @@ defmodule MastWeb.ServerLive.OverviewTab do
       <.ui_stat
         label="CPU Usage"
         value={format_pct(@server.cpu)}
-        sub={cpu_sub(@server.cpu)}
+        sub={cpu_sub(@server)}
         progress={progress_int(@server.cpu)}
         bar_tone={progress_tone(@server.cpu)}
       />
@@ -42,9 +43,9 @@ defmodule MastWeb.ServerLive.OverviewTab do
         bar_tone={progress_tone(@server.disk)}
       />
       <.ui_stat
-        label="Load Avg"
-        value={load_avg_label(@server)}
-        sub={load_avg_sub(@server)}
+        label="Network"
+        value={network_value(@latest_sample)}
+        sub={network_sub(@latest_sample)}
       />
     </section>
 
@@ -214,22 +215,32 @@ defmodule MastWeb.ServerLive.OverviewTab do
     Enum.map(points, fn %{t: t, v: v} -> %{t: t, v: v / 1_000_000} end)
   end
 
-  defp cpu_sub(nil), do: "no data"
-  defp cpu_sub(n) when is_number(n) and n >= 80, do: "high load"
+  defp cpu_sub(%{cpu: nil}), do: "no data"
+
+  defp cpu_sub(%{cpu_cores: cores}) when is_integer(cores) and cores > 0,
+    do: "of #{cores} #{pluralize_cores(cores)}"
+
   defp cpu_sub(_), do: "of capacity"
 
-  defp load_avg_label(%{load_1: l1, load_5: l5, load_15: l15})
-       when is_number(l1) and is_number(l5) and is_number(l15) do
-    "#{fmt_load(l1)} #{fmt_load(l5)} #{fmt_load(l15)}"
+  defp pluralize_cores(1), do: "core"
+  defp pluralize_cores(_), do: "cores"
+
+  defp network_value(%{"rx_bytes_s" => rx, "tx_bytes_s" => tx})
+       when is_number(rx) and is_number(tx) do
+    "#{fmt_mb_s((rx + tx) / 1_000_000)} MB/s"
   end
 
-  defp load_avg_label(_), do: "—"
+  defp network_value(_), do: "—"
 
-  defp load_avg_sub(%{load_1: l1}) when is_number(l1), do: "1m / 5m / 15m"
-  defp load_avg_sub(_), do: "no data"
+  defp network_sub(%{"rx_bytes_s" => rx, "tx_bytes_s" => tx})
+       when is_number(rx) and is_number(tx) do
+    "↓ #{fmt_mb_s(rx / 1_000_000)} · ↑ #{fmt_mb_s(tx / 1_000_000)}"
+  end
 
-  defp fmt_load(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 2)
-  defp fmt_load(n), do: to_string(n)
+  defp network_sub(_), do: "no data"
+
+  defp fmt_mb_s(n) when is_number(n), do: :erlang.float_to_binary(n * 1.0, decimals: 2)
+  defp fmt_mb_s(_), do: "0.00"
 
   defp progress_int(n) when is_number(n), do: round(n)
   defp progress_int(_), do: nil

@@ -80,6 +80,18 @@ defmodule MastWeb.ServerLive do
     |> assign(:range, range)
     |> assign(:bucket, bucket)
     |> assign(:series, build_series(rows))
+    |> assign(:latest_sample, latest_sample(socket.assigns.server.id))
+  end
+
+  defp latest_sample(server_id) do
+    since = DateTime.utc_now() |> DateTime.add(-3_600, :second)
+
+    Mast.Fleet.list_stats(server_id, "1m", since)
+    |> List.last()
+    |> case do
+      nil -> %{}
+      stat -> stat.stats
+    end
   end
 
   defp build_series(rows) do
@@ -114,7 +126,8 @@ defmodule MastWeb.ServerLive do
        |> assign(:scanning?, false)
        |> assign(:scan_error, nil)
        |> assign(:updates_page, 1)
-       |> assign(:activity, load_activity(server.id))}
+       |> assign(:activity, load_activity(server.id))
+       |> assign_series(socket.assigns.range)}
     else
       {:noreply, socket}
     end
@@ -406,6 +419,7 @@ defmodule MastWeb.ServerLive do
             activity={@activity}
             range={@range}
             series={@series}
+            latest_sample={@latest_sample}
           />
         <% "releases" -> %>
           <ReleasesTab.render

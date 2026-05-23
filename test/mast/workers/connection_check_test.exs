@@ -41,6 +41,7 @@ defmodule Mast.Workers.ConnectionCheckTest do
     Stub.expect(server, "free -m", {:ok, @free_out})
     Stub.expect(server, "df -h /", {:ok, @df_out})
     Stub.expect(server, "cat /proc/loadavg", {:ok, @loadavg_out})
+    Stub.expect(server, "nproc", {:ok, "4\n"})
   end
 
   describe "perform/1 with server_id" do
@@ -66,6 +67,7 @@ defmodule Mast.Workers.ConnectionCheckTest do
       assert reloaded.disk_used_gb == 12.0
       assert reloaded.last_seen_at
       assert reloaded.unreachable_count == 0
+      assert reloaded.cpu_cores == 4
     end
 
     test "marks server down when SSH fails" do

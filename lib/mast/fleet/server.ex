@@ -26,6 +26,7 @@ defmodule Mast.Fleet.Server do
     field :last_seen_at, :utc_datetime_usec
 
     field :cpu, :float
+    field :cpu_cores, :integer
     field :memory, :float
     field :disk, :float
     field :net_mb_s, :float
@@ -81,6 +82,7 @@ defmodule Mast.Fleet.Server do
     server
     |> cast(attrs, [
       :cpu,
+      :cpu_cores,
       :memory,
       :disk,
       :net_mb_s,

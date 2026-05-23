@@ -58,7 +58,8 @@ defmodule Mast.Workers.ConnectionCheck do
          {:ok, top} <- SSH.run(server, "top -bn1 | head -3"),
          {:ok, free} <- SSH.run(server, "free -m"),
          {:ok, df} <- SSH.run(server, "df -h /"),
-         {:ok, loadavg} <- SSH.run(server, "cat /proc/loadavg") do
+         {:ok, loadavg} <- SSH.run(server, "cat /proc/loadavg"),
+         {:ok, nproc} <- SSH.run(server, "nproc") do
       os_info = OS.parse(os)
       load = Metrics.parse_load_avg(loadavg) || %{}
       mem_bytes = Metrics.parse_memory_bytes(free) || %{}
@@ -77,8 +78,16 @@ defmodule Mast.Workers.ConnectionCheck do
          memory_total_mb: Map.get(mem_bytes, :total_mb),
          memory_used_mb: Map.get(mem_bytes, :used_mb),
          disk_total_gb: Map.get(disk_bytes, :total_gb),
-         disk_used_gb: Map.get(disk_bytes, :used_gb)
+         disk_used_gb: Map.get(disk_bytes, :used_gb),
+         cpu_cores: parse_nproc(nproc)
        }}
+    end
+  end
+
+  defp parse_nproc(s) when is_binary(s) do
+    case s |> String.trim() |> Integer.parse() do
+      {n, _} when n > 0 -> n
+      _ -> nil
     end
   end
 
