@@ -6,8 +6,25 @@ follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-22
+
 ### Added
-- Releases are now a first-class entity. Each Server hosts zero or
+- Persistent server metric history with tiered downsampling. New
+  `server_stats` table plus `Stats.Collect`, `Stats.Downsample`, and
+  `Stats.Prune` Oban workers wired into cron. Delta-aware parsers for
+  `/proc/net/dev`, `/proc/diskstats`, and `df -P` feed counter-cache
+  columns on `servers` (ADR 0010).
+- Server detail page now renders CPU, memory, disk, and network charts
+  via Chart.js, with a range dropdown driven by the downsampled tiers.
+- Network throughput KPI replaces the load-average tile on server
+  detail; CPU core count is surfaced alongside.
+- `Mast.Release` runner, `mise` build tasks, and a plain-HTTP prod path
+  for self-hosting.
+- `MAST_PUBLIC_URL` + proxy-header trust toggle for deployments behind
+  a reverse proxy.
+- Boot-time validation that `MAST_VAULT_KEY` decodes to 32 bytes.
+- Deployment guide and MIT license; project framed as personal-first.
+- Releases are a first-class entity. Each Server hosts zero or
   more Releases, each with its own `release_command` and Log Source
   config. Adds a `releases` table, per-Release probes, per-Release
   Application ownership (`applications.release_id`), and a new
