@@ -89,20 +89,61 @@ if config_env() == :prod do
       }
     ]
 
-  host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT", "4000"))
 
-  # Plain-HTTP by default (homelab, behind a private network). Set
-  # MAST_HTTPS=true when a reverse proxy in front terminates TLS so that
-  # generated URLs use https and the default URL port matches.
-  https? = System.get_env("MAST_HTTPS") in ~w(1 true yes)
-  url_scheme = if https?, do: "https", else: "http"
-  url_port = if https?, do: 443, else: port
+  # The public URL is the address operators actually share — the one users
+  # type into a browser. Bandit always listens on plain HTTP on PORT; TLS
+  # belongs at the reverse proxy in front (if any). Two separate concerns:
+  #
+  #   MAST_PUBLIC_URL          — what generated URLs look like
+  #     unset → http://<PHX_HOST or "localhost">:<PORT>
+  #     set   → parsed for scheme, host, port
+  #
+  #   MAST_TRUST_PROXY_HEADERS — whether to trust X-Forwarded-* from a proxy
+  #     unset/false → conn.scheme reflects the actual request (plain HTTP)
+  #     true        → conn.scheme picks up X-Forwarded-Proto; Secure cookies
+  #                   work correctly when behind a TLS-terminating proxy.
+  #                   ONLY enable this when a trusted proxy strips client-
+  #                   supplied X-Forwarded-* headers before setting its own.
+  {url_scheme, url_host, url_port} =
+    case System.get_env("MAST_PUBLIC_URL") do
+      nil ->
+        fallback_host = System.get_env("PHX_HOST") || "localhost"
+        {"http", fallback_host, port}
+
+      raw ->
+        uri = URI.parse(raw)
+
+        unless uri.scheme in ["http", "https"] and is_binary(uri.host) and uri.host != "" do
+          raise """
+          MAST_PUBLIC_URL must be a full URL with scheme and host, e.g.:
+            https://mast.example.com
+            http://192.168.0.71:4000
+          Got: #{inspect(raw)}
+          """
+        end
+
+        # URI.parse fills in default ports (80/443) for the scheme even when
+        # the URL string omits one. Detect "explicit" via the raw string so
+        # `http://10.0.0.1` (no port) falls back to PORT, not 80.
+        explicit_port? = Regex.match?(~r/:\d+(\/|$)/, raw)
+
+        derived_port =
+          cond do
+            explicit_port? -> uri.port
+            uri.scheme == "https" -> 443
+            true -> port
+          end
+
+        {uri.scheme, uri.host, derived_port}
+    end
+
+  trust_proxy_headers? = System.get_env("MAST_TRUST_PROXY_HEADERS") in ~w(1 true TRUE yes YES)
 
   config :mast, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :mast, MastWeb.Endpoint,
-    url: [host: host, port: url_port, scheme: url_scheme],
+    url: [host: url_host, port: url_port, scheme: url_scheme],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
@@ -111,7 +152,8 @@ if config_env() == :prod do
       port: port,
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    trust_proxy_headers: trust_proxy_headers?
 
   # ## SSL Support
   #
