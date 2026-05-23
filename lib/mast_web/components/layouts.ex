@@ -22,8 +22,48 @@ defmodule MastWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <div class="flex min-h-screen bg-[var(--mast-bg-primary)] text-[var(--mast-font-primary)]">
-      <.ui_sidebar active={@active}>
+    <div class="drawer bg-[var(--mast-bg-primary)] text-[var(--mast-font-primary)]">
+      <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+
+      <div class="drawer-content flex min-h-screen">
+        <.ui_sidebar active={@active}>
+          <:nav key="dashboard" navigate={~p"/"} icon="hero-squares-2x2">Dashboard</:nav>
+          <:nav key="servers" navigate={~p"/"} icon="hero-server-stack">Servers</:nav>
+          <:nav key="alerts" navigate={~p"/alerts"} icon="hero-bell-alert">Alerts</:nav>
+          <:nav key="audit" navigate={~p"/audit"} icon="hero-document-text">Audit</:nav>
+          <:nav key="settings" navigate={~p"/settings"} icon="hero-cog-6-tooth">Settings</:nav>
+          <:footer>
+            <.theme_toggle />
+            <span class="text-[10px] text-[var(--mast-font-tertiary)] font-mono">
+              v{Mast.version()}
+            </span>
+          </:footer>
+        </.ui_sidebar>
+
+        <div class="flex-1 min-w-0 flex flex-col">
+          <header class="lg:hidden flex items-center gap-3 h-14 px-4 border-b border-[var(--mast-border)] bg-[var(--mast-bg-sidebar)]">
+            <label
+              for="app-drawer"
+              class="p-2 -ml-2 rounded-[var(--radius-field)] text-[var(--mast-font-secondary)] hover:text-[var(--mast-font-primary)] hover:bg-[var(--mast-bg-card-hover)] cursor-pointer"
+              aria-label="Open menu"
+            >
+              <.icon name="hero-bars-3" class="size-5" />
+            </label>
+            <div class="flex items-center gap-2">
+              <img src="/images/favicon.svg" alt="" class="size-6 rounded-md" />
+              <span class="text-sm font-semibold tracking-tight">Mast</span>
+            </div>
+          </header>
+
+          <main class="flex-1 min-w-0 px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
+            <div class="mx-auto max-w-7xl">
+              {render_slot(@inner_block)}
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <.ui_mobile_drawer toggle_id="app-drawer" active={@active}>
         <:nav key="dashboard" navigate={~p"/"} icon="hero-squares-2x2">Dashboard</:nav>
         <:nav key="servers" navigate={~p"/"} icon="hero-server-stack">Servers</:nav>
         <:nav key="alerts" navigate={~p"/alerts"} icon="hero-bell-alert">Alerts</:nav>
@@ -35,13 +75,7 @@ defmodule MastWeb.Layouts do
             v{Mast.version()}
           </span>
         </:footer>
-      </.ui_sidebar>
-
-      <main class="flex-1 min-w-0 px-6 py-6 lg:px-10 lg:py-8">
-        <div class="mx-auto max-w-7xl">
-          {render_slot(@inner_block)}
-        </div>
-      </main>
+      </.ui_mobile_drawer>
 
       <.flash_group flash={@flash} />
     </div>

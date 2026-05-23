@@ -42,7 +42,7 @@ defmodule MastWeb.Components.UI.Containers do
     ]}>
       <header
         :if={@header != [] or @title != [] or @subtitle != [] or @actions != []}
-        class="flex items-start justify-between gap-4 px-5 pt-5 pb-3"
+        class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 px-5 pt-5 pb-3"
       >
         <div :if={@title != [] or @subtitle != []} class={["min-w-0", @actions == [] && "flex-1"]}>
           <h2
@@ -142,15 +142,15 @@ defmodule MastWeb.Components.UI.Containers do
     >
       <div
         class={[
-          "w-full max-w-md bg-[var(--mast-bg-card)] border border-[var(--mast-border)]",
-          "rounded-[var(--radius-box)] shadow-xl overflow-hidden",
+          "w-full max-w-md max-h-[calc(100vh-2rem)] bg-[var(--mast-bg-card)] border border-[var(--mast-border)]",
+          "rounded-[var(--radius-box)] shadow-xl overflow-hidden flex flex-col",
           @class
         ]}
         phx-click-away={@on_cancel}
       >
         <header
           :if={@title != [] or @subtitle != []}
-          class="flex items-start justify-between gap-4 px-5 pt-5 pb-3"
+          class="flex items-start justify-between gap-4 px-5 pt-5 pb-3 shrink-0"
         >
           <div class="min-w-0">
             <h2
@@ -173,13 +173,13 @@ defmodule MastWeb.Components.UI.Containers do
           </button>
         </header>
 
-        <div class="px-5 pb-5">
+        <div class="px-5 pb-5 overflow-y-auto flex-1 min-h-0">
           {render_slot(@inner_block)}
         </div>
 
         <footer
           :if={@footer != []}
-          class="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--mast-border)] bg-[var(--mast-bg-secondary)]"
+          class="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--mast-border)] bg-[var(--mast-bg-secondary)] shrink-0"
         >
           {render_slot(@footer)}
         </footer>
@@ -209,7 +209,7 @@ defmodule MastWeb.Components.UI.Containers do
     ~H"""
     <section class={[
       "bg-[var(--mast-bg-card)] border border-[var(--mast-border)]",
-      "rounded-[var(--radius-box)] p-5 shadow-sm",
+      "rounded-[var(--radius-box)] p-5 shadow-sm min-w-0 overflow-hidden",
       @class
     ]}>
       <header class="flex items-center gap-3 mb-4">

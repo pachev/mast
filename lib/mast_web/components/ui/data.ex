@@ -151,13 +151,15 @@ defmodule MastWeb.Components.UI.Data do
 
   def ui_card_title(assigns) do
     ~H"""
-    <span class="inline-flex items-center gap-2 w-full">
+    <span class="flex flex-wrap items-center gap-x-2 gap-y-1 w-full min-w-0">
       <span class={[@icon, "size-4 shrink-0", card_title_color(@color)]} />
-      <span class="text-[14px] font-semibold text-[var(--mast-font-primary)]">
+      <span class="text-[14px] font-semibold text-[var(--mast-font-primary)] min-w-0 break-words">
         {render_slot(@inner_block)}
       </span>
-      <span class="flex-1" />
-      <span :if={@meta != []} class="text-[12px] text-[var(--mast-font-tertiary)]">
+      <span
+        :if={@meta != []}
+        class="text-[12px] text-[var(--mast-font-tertiary)] ml-auto whitespace-nowrap"
+      >
         {render_slot(@meta)}
       </span>
     </span>
@@ -269,11 +271,11 @@ defmodule MastWeb.Components.UI.Data do
       <div
         :for={{row, idx} <- Enum.with_index(@row)}
         class={[
-          "h-11 px-5 flex items-center gap-4",
+          "py-2 sm:h-11 sm:py-0 px-5 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4",
           idx < length(@row) - 1 && "border-b border-[var(--mast-border)]"
         ]}
       >
-        <span class="text-[13px] font-medium text-[var(--mast-font-secondary)] w-40 shrink-0">
+        <span class="text-[13px] font-medium text-[var(--mast-font-secondary)] sm:w-40 shrink-0">
           {row.label}
         </span>
         <span class="text-[13px] font-mono text-[var(--mast-font-primary)] flex-1 min-w-0 truncate">

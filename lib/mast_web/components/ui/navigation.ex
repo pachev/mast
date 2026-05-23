@@ -26,7 +26,11 @@ defmodule MastWeb.Components.UI.Navigation do
 
   def ui_tabs(assigns) do
     ~H"""
-    <div class={["flex items-center gap-1 border-b border-[var(--mast-border)]", @class]}>
+    <div class={[
+      "flex items-center gap-1 border-b border-[var(--mast-border)]",
+      "overflow-x-auto whitespace-nowrap",
+      @class
+    ]}>
       <%= for tab <- @tab do %>
         <% active? = tab.key == @active %>
         <%= cond do %>
@@ -113,45 +117,106 @@ defmodule MastWeb.Components.UI.Navigation do
   def ui_sidebar(assigns) do
     ~H"""
     <aside class={[
-      "w-56 shrink-0 h-screen sticky top-0 flex flex-col",
+      "w-56 shrink-0 h-screen sticky top-0 hidden lg:flex flex-col",
       "bg-[var(--mast-bg-sidebar)] border-r border-[var(--mast-border)]",
       @class
     ]}>
-      <div class="flex items-center gap-2.5 px-4 h-14 border-b border-[var(--mast-border)]">
-        <img src="/images/favicon.svg" alt="Mast" class="size-7 rounded-md" />
-        <span class="text-base font-semibold text-[var(--mast-font-primary)] tracking-tight">
-          Mast
-        </span>
-      </div>
-
-      <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        <%= for n <- @nav do %>
-          <% active? = n.key == @active %>
-          <.link
-            navigate={n[:navigate] || "#"}
-            class={[
-              "flex items-center gap-2.5 px-3 h-9 rounded-[var(--radius-field)]",
-              "text-sm font-medium leading-none transition-colors",
-              if active? do
-                "bg-[var(--mast-accent-muted)] text-[var(--mast-accent)]"
-              else
-                "text-[var(--mast-font-secondary)] hover:bg-[var(--mast-bg-card-hover)] hover:text-[var(--mast-font-primary)]"
-              end
-            ]}
-          >
-            <span :if={n[:icon]} class={[n.icon, "size-4 shrink-0"]} />
-            {render_slot(n)}
-          </.link>
-        <% end %>
-      </nav>
-
-      <div
-        :if={@footer != []}
-        class="px-3 py-3 border-t border-[var(--mast-border)] flex items-center justify-between gap-2"
-      >
-        {render_slot(@footer)}
-      </div>
+      <.sidebar_brand />
+      <.sidebar_nav nav={@nav} active={@active} />
+      <.sidebar_footer :if={@footer != []}>{render_slot(@footer)}</.sidebar_footer>
     </aside>
+    """
+  end
+
+  @doc """
+  Mobile drawer-side companion to `ui_sidebar/1`. Renders the same nav
+  links inside a daisyUI `drawer-side` so the layout can expose them via
+  a hamburger toggle on screens below `md`.
+
+      <.ui_mobile_drawer toggle_id="app-drawer" active="dashboard">
+        <:nav key="dashboard" navigate={~p"/"} icon="hero-squares-2x2">Dashboard</:nav>
+        <:footer><.theme_toggle /></:footer>
+      </.ui_mobile_drawer>
+  """
+  attr :toggle_id, :string, required: true
+  attr :active, :string, default: "dashboard"
+
+  slot :nav, required: true do
+    attr :key, :string, required: true
+    attr :navigate, :string
+    attr :icon, :string
+  end
+
+  slot :footer
+
+  def ui_mobile_drawer(assigns) do
+    ~H"""
+    <div class="drawer-side z-40 lg:hidden">
+      <label
+        for={@toggle_id}
+        aria-label="close sidebar"
+        class="drawer-overlay"
+      >
+      </label>
+      <aside class="w-56 h-full flex flex-col bg-[var(--mast-bg-sidebar)] border-r border-[var(--mast-border)]">
+        <.sidebar_brand />
+        <.sidebar_nav nav={@nav} active={@active} drawer_toggle_id={@toggle_id} />
+        <.sidebar_footer :if={@footer != []}>{render_slot(@footer)}</.sidebar_footer>
+      </aside>
+    </div>
+    """
+  end
+
+  defp sidebar_brand(assigns) do
+    ~H"""
+    <div class="flex items-center gap-2.5 px-4 h-14 border-b border-[var(--mast-border)]">
+      <img src="/images/favicon.svg" alt="Mast" class="size-7 rounded-md" />
+      <span class="text-base font-semibold text-[var(--mast-font-primary)] tracking-tight">
+        Mast
+      </span>
+    </div>
+    """
+  end
+
+  attr :nav, :list, required: true
+  attr :active, :string, required: true
+  attr :drawer_toggle_id, :string, default: nil
+
+  defp sidebar_nav(assigns) do
+    ~H"""
+    <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+      <%= for n <- @nav do %>
+        <% active? = n.key == @active %>
+        <.link
+          navigate={n[:navigate] || "#"}
+          phx-click={
+            @drawer_toggle_id && Phoenix.LiveView.JS.dispatch("click", to: "##{@drawer_toggle_id}")
+          }
+          class={[
+            "flex items-center gap-2.5 px-3 h-9 rounded-[var(--radius-field)]",
+            "text-sm font-medium leading-none transition-colors",
+            if active? do
+              "bg-[var(--mast-accent-muted)] text-[var(--mast-accent)]"
+            else
+              "text-[var(--mast-font-secondary)] hover:bg-[var(--mast-bg-card-hover)] hover:text-[var(--mast-font-primary)]"
+            end
+          ]}
+        >
+          <span :if={n[:icon]} class={[n.icon, "size-4 shrink-0"]} />
+          {render_slot(n)}
+        </.link>
+      <% end %>
+    </nav>
+    """
+  end
+
+  slot :inner_block, required: true
+
+  defp sidebar_footer(assigns) do
+    ~H"""
+    <div class="px-3 py-3 border-t border-[var(--mast-border)] flex items-center justify-between gap-2">
+      {render_slot(@inner_block)}
+    </div>
     """
   end
 
@@ -175,7 +240,7 @@ defmodule MastWeb.Components.UI.Navigation do
   def ui_page_header(assigns) do
     ~H"""
     <div class={[
-      "flex items-end justify-between gap-4 flex-wrap pb-5",
+      "flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 flex-wrap pb-5",
       @class
     ]}>
       <div class="min-w-0">
@@ -186,7 +251,10 @@ defmodule MastWeb.Components.UI.Navigation do
           {@subtitle}
         </p>
       </div>
-      <div :if={@actions != []} class="flex items-center gap-2 flex-wrap">
+      <div
+        :if={@actions != []}
+        class="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap [&>*]:w-full sm:[&>*]:w-auto"
+      >
         {render_slot(@actions)}
       </div>
     </div>

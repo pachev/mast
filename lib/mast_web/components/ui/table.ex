@@ -54,7 +54,7 @@ defmodule MastWeb.Components.UI.Table do
     >
       <div
         :if={@action_bar != []}
-        class="px-4 py-3 border-b border-[var(--mast-border)] flex items-center gap-3"
+        class="px-4 py-3 border-b border-[var(--mast-border)] flex flex-wrap items-center gap-3"
       >
         {render_slot(@action_bar)}
       </div>
@@ -125,11 +125,14 @@ defmodule MastWeb.Components.UI.Table do
     ~H"""
     <div
       :if={@total > 0}
-      class="px-4 py-3 border-t border-[var(--mast-border)] flex items-center justify-between gap-3 text-xs text-[var(--mast-font-secondary)]"
+      class="px-4 py-3 border-t border-[var(--mast-border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-[var(--mast-font-secondary)]"
     >
       <span>Showing {@from}-{@to} of {@total}</span>
 
-      <div :if={@pages > 1} class="flex items-center gap-1">
+      <div :if={@pages > 1} class="flex items-center gap-1 flex-wrap">
+        <span :if={@pages > 1} class="sm:hidden tabular-nums">
+          Page {@page} of {@pages}
+        </span>
         <button
           type="button"
           phx-click={@event}
@@ -140,26 +143,28 @@ defmodule MastWeb.Components.UI.Table do
           Previous
         </button>
 
-        <%= for n <- @numbers do %>
-          <%= if n == :gap do %>
-            <span class="h-8 w-8 inline-flex items-center justify-center">…</span>
-          <% else %>
-            <button
-              type="button"
-              phx-click={@event}
-              phx-value-page={n}
-              class={[
-                "h-8 w-8 rounded-[var(--radius-field)] tabular-nums",
-                if(n == @page,
-                  do: "bg-[var(--mast-accent)] text-[var(--mast-accent-text)]",
-                  else: "hover:bg-[var(--mast-bg-card-hover)]"
-                )
-              ]}
-            >
-              {n}
-            </button>
+        <div class="hidden sm:flex items-center gap-1">
+          <%= for n <- @numbers do %>
+            <%= if n == :gap do %>
+              <span class="h-8 w-8 inline-flex items-center justify-center">…</span>
+            <% else %>
+              <button
+                type="button"
+                phx-click={@event}
+                phx-value-page={n}
+                class={[
+                  "h-8 w-8 rounded-[var(--radius-field)] tabular-nums",
+                  if(n == @page,
+                    do: "bg-[var(--mast-accent)] text-[var(--mast-accent-text)]",
+                    else: "hover:bg-[var(--mast-bg-card-hover)]"
+                  )
+                ]}
+              >
+                {n}
+              </button>
+            <% end %>
           <% end %>
-        <% end %>
+        </div>
 
         <button
           type="button"
