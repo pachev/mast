@@ -25,7 +25,10 @@ config :mast, Oban,
     # PatchScan stays on cron — weekly is plenty.
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 0 * * 0", Mast.Workers.PatchScan, args: %{all: true}}
+       {"0 0 * * 0", Mast.Workers.PatchScan, args: %{all: true}},
+       {"* * * * *", Mast.Workers.StatsCollect, args: %{all: true}},
+       {"*/10 * * * *", Mast.Workers.StatsDownsample, args: %{}},
+       {"0 * * * *", Mast.Workers.StatsPrune, args: %{}}
      ]}
   ]
 
