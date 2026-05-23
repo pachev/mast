@@ -139,4 +139,240 @@ defmodule Mast.Hosts.Metrics do
         nil
     end
   end
+
+  @doc """
+  Parses `/proc/net/dev` and computes per-second bandwidth rates against a
+  previous sample.
+
+  `prev` is the cached value from the last collect tick or `nil` on the
+  first sample. Shape: `%{captured_at: DateTime.t(), ifaces: %{name => %{rx,
+  tx}}}`. Loopback is excluded from totals. Returns rates of `0.0` when
+  `prev` is `nil` (first sample primes the cache).
+
+  Counter wraparound (current < prev) clamps to 0.
+  """
+  @spec parse_net_dev(String.t(), map() | nil, DateTime.t()) ::
+          %{rx_bytes_s: float(), tx_bytes_s: float(), raw: map()} | nil
+  def parse_net_dev(output, prev, now \\ nil)
+
+  def parse_net_dev(output, prev, now) when is_binary(output) do
+    case parse_net_dev_ifaces(output) do
+      ifaces when map_size(ifaces) > 0 ->
+        rx_total = ifaces |> Map.values() |> Enum.reduce(0, &(&1.rx + &2))
+        tx_total = ifaces |> Map.values() |> Enum.reduce(0, &(&1.tx + &2))
+
+        {rx_s, tx_s} = compute_net_rates(prev, ifaces, rx_total, tx_total, now)
+
+        %{rx_bytes_s: rx_s, tx_bytes_s: tx_s, raw: ifaces}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp parse_net_dev_ifaces(output) do
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.flat_map(fn line ->
+      case Regex.run(~r/^\s*([^:\s]+):\s*(\d+)(?:\s+\d+){7}\s+(\d+)/, line) do
+        [_, name, rx, tx] when name != "lo" ->
+          {r, _} = Integer.parse(rx)
+          {t, _} = Integer.parse(tx)
+          [{name, %{rx: r, tx: t}}]
+
+        _ ->
+          []
+      end
+    end)
+    |> Map.new()
+  end
+
+  defp compute_net_rates(nil, _ifaces, _rx, _tx, _now), do: {0.0, 0.0}
+
+  defp compute_net_rates(prev, _ifaces, rx_total, tx_total, now) do
+    now = now || DateTime.utc_now()
+    elapsed = DateTime.diff(now, prev.captured_at, :second)
+
+    if elapsed <= 0 do
+      {0.0, 0.0}
+    else
+      prev_ifaces = Map.get(prev, :ifaces) || Map.get(prev, "ifaces") || %{}
+      prev_rx = prev_ifaces |> Enum.reduce(0, fn {_, v}, acc -> acc + counter_get(v, :rx) end)
+      prev_tx = prev_ifaces |> Enum.reduce(0, fn {_, v}, acc -> acc + counter_get(v, :tx) end)
+
+      {clamp_rate(rx_total - prev_rx, elapsed), clamp_rate(tx_total - prev_tx, elapsed)}
+    end
+  end
+
+  defp counter_get(map, key) when is_atom(key) do
+    Map.get(map, key) || Map.get(map, Atom.to_string(key)) || 0
+  end
+
+  defp clamp_rate(delta, _elapsed) when delta < 0, do: 0.0
+  defp clamp_rate(delta, elapsed), do: Float.round(delta / elapsed, 2)
+
+  @doc """
+  Parses `/proc/diskstats` and computes per-second I/O byte rates against a
+  previous sample.
+
+  Filters out loop and dm devices; sums sectors read and sectors written
+  across physical block devices. Sector size is the kernel constant of 512
+  bytes. `prev` shape: `%{captured_at, sectors_read, sectors_written}` or
+  `nil` for first sample.
+  """
+  @spec parse_diskstats(String.t(), map() | nil, DateTime.t()) ::
+          %{read_bytes_s: float(), write_bytes_s: float(), raw: map()} | nil
+  def parse_diskstats(output, prev, now \\ nil)
+
+  def parse_diskstats(output, prev, now) when is_binary(output) do
+    case parse_diskstats_totals(output) do
+      nil ->
+        nil
+
+      {sectors_read, sectors_written} ->
+        {r_s, w_s} =
+          compute_disk_rates(prev, sectors_read, sectors_written, now)
+
+        %{
+          read_bytes_s: r_s,
+          write_bytes_s: w_s,
+          raw: %{sectors_read: sectors_read, sectors_written: sectors_written}
+        }
+    end
+  end
+
+  defp parse_diskstats_totals(output) do
+    lines =
+      output
+      |> String.split("\n", trim: true)
+      |> Enum.flat_map(&parse_diskstats_line/1)
+
+    if lines == [] do
+      nil
+    else
+      Enum.reduce(lines, {0, 0}, fn {r, w}, {ra, wa} -> {ra + r, wa + w} end)
+    end
+  end
+
+  # Columns (1-indexed): 1 major, 2 minor, 3 name, 4 reads, 5 reads merged,
+  # 6 sectors read, 7 ms reading, 8 writes, 9 writes merged, 10 sectors
+  # written, ...
+  defp parse_diskstats_line(line) do
+    case String.split(line) do
+      [_maj, _min, name | rest] ->
+        cond do
+          virtual_block?(name) -> []
+          length(rest) < 7 -> []
+          true -> parse_diskstats_fields(name, rest)
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  defp parse_diskstats_fields(_name, rest) do
+    sectors_read = rest |> Enum.at(2) |> safe_int()
+    sectors_written = rest |> Enum.at(6) |> safe_int()
+    [{sectors_read, sectors_written}]
+  end
+
+  defp safe_int(nil), do: 0
+
+  defp safe_int(s) do
+    case Integer.parse(s) do
+      {n, _} -> n
+      _ -> 0
+    end
+  end
+
+  # Skip virtual / aggregated devices: loop, dm-*, partition numbers (e.g.
+  # nvme0n1p1, sda1) are also skipped to avoid double-counting against the
+  # parent block device.
+  defp virtual_block?(name) do
+    String.starts_with?(name, "loop") or
+      String.starts_with?(name, "ram") or
+      String.starts_with?(name, "dm-") or
+      String.starts_with?(name, "sr") or
+      partition?(name)
+  end
+
+  defp partition?(name) do
+    case Regex.run(~r/^(?:sd[a-z]+|hd[a-z]+|vd[a-z]+|xvd[a-z]+|nvme\d+n\d+p)(\d+)$/, name) do
+      [_, _] -> true
+      _ -> false
+    end
+  end
+
+  defp compute_disk_rates(nil, _r, _w, _now), do: {0.0, 0.0}
+
+  defp compute_disk_rates(prev, sectors_read, sectors_written, now) do
+    now = now || DateTime.utc_now()
+    elapsed = DateTime.diff(now, prev.captured_at, :second)
+
+    if elapsed <= 0 do
+      {0.0, 0.0}
+    else
+      prev_r = Map.get(prev, :sectors_read, 0)
+      prev_w = Map.get(prev, :sectors_written, 0)
+
+      {
+        clamp_rate((sectors_read - prev_r) * 512, elapsed),
+        clamp_rate((sectors_written - prev_w) * 512, elapsed)
+      }
+    end
+  end
+
+  @virtual_fs ~w(tmpfs devtmpfs squashfs overlay aufs proc sysfs cgroup cgroup2 nsfs none udev)
+
+  @doc """
+  Parses `df -P` output (POSIX one-line-per-fs) and returns one entry per
+  real mounted filesystem. Virtual filesystems (tmpfs, devtmpfs, etc.) are
+  filtered out.
+
+  1024-blocks are converted to GB (decimal: 1e9 bytes), matching how disk
+  capacity is conventionally reported.
+  """
+  @spec parse_df_p(String.t()) :: [
+          %{mount: String.t(), used_pct: float(), total_gb: float(), used_gb: float()}
+        ]
+  def parse_df_p(output) when is_binary(output) do
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.flat_map(&parse_df_p_line/1)
+  end
+
+  defp parse_df_p_line(line) do
+    case String.split(line) do
+      [fs, blocks_s, used_s, _avail_s, pct_s, mount | _] ->
+        cond do
+          fs == "Filesystem" -> []
+          virtual_fs?(fs) -> []
+          true -> df_entry(blocks_s, used_s, pct_s, mount)
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  defp virtual_fs?(fs) do
+    Enum.any?(@virtual_fs, &(fs == &1)) or
+      String.starts_with?(fs, "tmpfs") or
+      fs == "none" or
+      fs == "udev"
+  end
+
+  defp df_entry(blocks_s, used_s, pct_s, mount) do
+    with {blocks, _} <- Integer.parse(blocks_s),
+         {used, _} <- Integer.parse(used_s),
+         {pct, _} <- Integer.parse(String.trim_trailing(pct_s, "%")) do
+      # 1024-byte blocks -> GiB (1024^3). Matches parse_disk_bytes/1.
+      total_gb = Float.round(blocks / 1_048_576, 2)
+      used_gb = Float.round(used / 1_048_576, 2)
+      [%{mount: mount, used_pct: pct * 1.0, total_gb: total_gb, used_gb: used_gb}]
+    else
+      _ -> []
+    end
+  end
 end

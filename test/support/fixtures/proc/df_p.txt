@@ -1,0 +1,8 @@
+Filesystem                       1024-blocks    Used Available Capacity Mounted on
+/dev/mapper/pve-vm--200--disk--0    12278920 2791824   8841568      24% /
+none                                     492       4       488       1% /dev
+udev                                10093332       0  10093332       0% /dev/tty
+tmpfs                               10127152    1052  10126100       1% /dev/shm
+tmpfs                                4050864     128   4050736       1% /run
+tmpfs                                   5120       0      5120       0% /run/lock
+tmpfs                                2025428       0   2025428       0% /run/user/1000

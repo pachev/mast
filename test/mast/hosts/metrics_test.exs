@@ -123,4 +123,131 @@ defmodule Mast.Hosts.MetricsTest do
       assert Metrics.parse_load_avg("") == nil
     end
   end
+
+  describe "parse_net_dev/2 (/proc/net/dev with delta)" do
+    @fixture File.read!("test/support/fixtures/proc/net_dev.txt")
+
+    test "returns zero rates and primes the raw cache when prev is nil" do
+      r = Metrics.parse_net_dev(@fixture, nil)
+      assert r.rx_bytes_s == 0.0
+      assert r.tx_bytes_s == 0.0
+      assert is_map(r.raw)
+      assert r.raw["eth0"].rx > 0
+      assert r.raw["eth0"].tx > 0
+    end
+
+    test "excludes loopback from totals" do
+      r = Metrics.parse_net_dev(@fixture, nil)
+      # eth0 rx in fixture is 669412285; lo is 3958040. raw must not include lo in totals.
+      refute Map.has_key?(r.raw, "lo")
+    end
+
+    test "computes per-second deltas given prev captured 60s earlier" do
+      now = DateTime.utc_now()
+      prev_at = DateTime.add(now, -60, :second)
+
+      prev = %{
+        captured_at: prev_at,
+        ifaces: %{"eth0" => %{rx: 669_425_513 - 60_000, tx: 8_587_456 - 6_000}}
+      }
+
+      r = Metrics.parse_net_dev(@fixture, prev, now)
+      # 60_000 bytes over 60s = 1_000 bytes/s
+      assert_in_delta r.rx_bytes_s, 1_000.0, 0.5
+      assert_in_delta r.tx_bytes_s, 100.0, 0.5
+    end
+
+    test "clamps negative deltas to 0 on counter wraparound" do
+      now = DateTime.utc_now()
+      prev_at = DateTime.add(now, -60, :second)
+
+      prev = %{
+        captured_at: prev_at,
+        ifaces: %{"eth0" => %{rx: 999_999_999_999, tx: 999_999_999_999}}
+      }
+
+      r = Metrics.parse_net_dev(@fixture, prev, now)
+      assert r.rx_bytes_s == 0.0
+      assert r.tx_bytes_s == 0.0
+    end
+
+    test "returns nil for unparseable input" do
+      assert Metrics.parse_net_dev("nope", nil) == nil
+    end
+  end
+
+  describe "parse_diskstats/2 (/proc/diskstats with delta)" do
+    @fixture File.read!("test/support/fixtures/proc/diskstats.txt")
+
+    test "returns zero rates and primes raw when prev is nil" do
+      r = Metrics.parse_diskstats(@fixture, nil)
+      assert r.read_bytes_s == 0.0
+      assert r.write_bytes_s == 0.0
+      assert is_map(r.raw)
+      assert r.raw.sectors_read > 0
+    end
+
+    test "ignores loop and dm devices in totals" do
+      r = Metrics.parse_diskstats(@fixture, nil)
+      # nvme0n1 root + partitions contribute; loop and dm are excluded.
+      # nvme0n1 has 298_166_048 sectors read (col 6).
+      assert r.raw.sectors_read >= 298_166_048
+    end
+
+    test "computes bytes/s as (delta sectors * 512) / elapsed" do
+      now = DateTime.utc_now()
+      prev_at = DateTime.add(now, -60, :second)
+      # 1024 sectors over 60s = 1024*512/60 ≈ 8738.13 bytes/s
+      current_r = parse_raw_sectors_read(@fixture)
+      current_w = parse_raw_sectors_written(@fixture)
+
+      prev = %{
+        captured_at: prev_at,
+        sectors_read: current_r - 1024,
+        sectors_written: current_w - 2048
+      }
+
+      r = Metrics.parse_diskstats(@fixture, prev, now)
+      assert_in_delta r.read_bytes_s, 1024 * 512 / 60, 1.0
+      assert_in_delta r.write_bytes_s, 2048 * 512 / 60, 1.0
+    end
+
+    defp parse_raw_sectors_read(fixture),
+      do: Metrics.parse_diskstats(fixture, nil).raw.sectors_read
+
+    defp parse_raw_sectors_written(fixture),
+      do: Metrics.parse_diskstats(fixture, nil).raw.sectors_written
+  end
+
+  describe "parse_df_p/1 (df -P all mounts)" do
+    @fixture File.read!("test/support/fixtures/proc/df_p.txt")
+
+    test "returns one entry per real mount" do
+      entries = Metrics.parse_df_p(@fixture)
+      assert is_list(entries)
+      assert Enum.any?(entries, &(&1.mount == "/"))
+    end
+
+    test "filters out tmpfs / udev / virtual fs" do
+      entries = Metrics.parse_df_p(@fixture)
+      mounts = Enum.map(entries, & &1.mount)
+      refute "/dev" in mounts
+      refute "/dev/tty" in mounts
+      refute "/dev/shm" in mounts
+      refute "/run" in mounts
+    end
+
+    test "extracts used_pct, total_gb, used_gb for root" do
+      entries = Metrics.parse_df_p(@fixture)
+      root = Enum.find(entries, &(&1.mount == "/"))
+      assert root.used_pct == 24.0
+      # 12278920 1024-blocks ≈ 11.71 GB
+      assert_in_delta root.total_gb, 11.71, 0.05
+      assert_in_delta root.used_gb, 2.66, 0.05
+    end
+
+    test "returns empty list for unparseable input" do
+      assert Metrics.parse_df_p("nope\n") == []
+    end
+  end
 end
