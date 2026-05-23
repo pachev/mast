@@ -1,6 +1,7 @@
 [tools]
 erlang = "28"
 elixir = "1.19"
+node = "22"
 
 [tasks.setup]
 description = "Install deps, start db, setup schema"

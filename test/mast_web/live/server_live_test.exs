@@ -262,7 +262,8 @@ defmodule MastWeb.ServerLiveTest do
       {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
 
       assert html =~ "CPU over time"
-      assert html =~ "<polyline"
+      assert html =~ ~s(<canvas)
+      assert html =~ "MetricChart"
       # Default range is 1h.
       assert html =~ ~s(value="1h" selected)
     end
@@ -272,27 +273,32 @@ defmodule MastWeb.ServerLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
 
-      assert html =~ "Collecting first sample"
+      assert html =~ "Waiting for more samples"
     end
 
     test "changing range to 7d re-queries with 120m bucket", %{conn: conn} do
       {:ok, server} = Fleet.create_server(%{name: "ranged", host: "10.0.0.82"})
 
-      old =
-        DateTime.add(DateTime.utc_now(), -3 * 86_400, :second) |> DateTime.truncate(:microsecond)
+      # Need at least 2 points for the chart to render a canvas (one point
+      # collapses the x-axis); see Charts.line_chart/1.
+      for offset_days <- [3, 2] do
+        at =
+          DateTime.add(DateTime.utc_now(), -offset_days * 86_400, :second)
+          |> DateTime.truncate(:microsecond)
 
-      {:ok, _} =
-        Fleet.record_sample(server, %{
-          bucket: "120m",
-          recorded_at: old,
-          stats: %{"cpu" => 42.0}
-        })
+        {:ok, _} =
+          Fleet.record_sample(server, %{
+            bucket: "120m",
+            recorded_at: at,
+            stats: %{"cpu" => 42.0}
+          })
+      end
 
       {:ok, view, _html} = live(conn, ~p"/servers/#{server}")
 
       html = view |> element("#range-form") |> render_change(%{"range" => "7d"})
       assert html =~ ~s(value="7d" selected)
-      assert html =~ "<polyline"
+      assert html =~ ~s(<canvas)
     end
 
     test "dashboard removes the row on :server_deleted broadcast", %{conn: conn} do

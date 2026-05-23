@@ -73,13 +73,16 @@ defmodule MastWeb.ServerLive do
 
   defp assign_series(socket, range) do
     {bucket, seconds} = Map.fetch!(@ranges, range)
-    since = DateTime.utc_now() |> DateTime.add(-seconds, :second)
+    until = DateTime.utc_now()
+    since = DateTime.add(until, -seconds, :second)
     rows = Mast.Fleet.list_stats(socket.assigns.server.id, bucket, since)
 
     socket
     |> assign(:range, range)
     |> assign(:bucket, bucket)
     |> assign(:series, build_series(rows))
+    |> assign(:range_since, since)
+    |> assign(:range_until, until)
     |> assign(:latest_sample, latest_sample(socket.assigns.server.id))
   end
 
@@ -419,6 +422,8 @@ defmodule MastWeb.ServerLive do
             activity={@activity}
             range={@range}
             series={@series}
+            range_since={@range_since}
+            range_until={@range_until}
             latest_sample={@latest_sample}
           />
         <% "releases" -> %>

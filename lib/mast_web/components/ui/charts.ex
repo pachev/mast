@@ -1,93 +1,218 @@
 defmodule MastWeb.Components.UI.Charts do
   @moduledoc """
-  Server-rendered SVG charts. v1 of the server-detail metrics history
-  panel uses pure SVG with no JS hook. A richer Canvas/Chart.js renderer
-  is tracked as a follow-up issue.
+  Canvas + Chart.js line charts. The hook is colocated below the markup
+  so the JS lives next to the component. See ADR 0011.
   """
   use Phoenix.Component
 
-  @viewbox_width 600
-  @viewbox_height 160
-
   @doc """
-  A minimal line chart. `points` is a list of `%{t: DateTime, v: number}`
-  ordered ascending by `t`. `color` maps to a `--mast-chart-*` token.
+  A line chart rendered via Chart.js. Accepts either:
 
-  Empty input renders an empty-state. Single point renders a flat line.
+    * `points` — `[%{t: DateTime, v: number}]`, single-series shape kept
+      for backward compatibility with callers that pre-date multi-series.
+    * `series` — `[%{name: string, color: string, points: [%{t, v}]}]`,
+      one entry per overlaid line. Color names map to `--mast-chart-*`
+      tokens.
+
+  When both are empty, renders an empty-state placeholder.
   """
-  attr :points, :list, required: true
+  attr :id, :string, required: true
+  attr :points, :list, default: nil
+  attr :series, :list, default: nil
   attr :color, :string, default: "blue"
   attr :label, :string, default: ""
   attr :unit, :string, default: ""
+  attr :y_format, :string, default: "number", values: ~w(number percent mb_s)
+  attr :since, :any, default: nil
+  attr :until, :any, default: nil
 
   def line_chart(assigns) do
-    {polyline, min_v, max_v} = build_polyline(assigns.points)
+    series = encode_series(assigns)
+    total_points = series |> Enum.map(&length(&1.points)) |> Enum.sum()
+    # A line needs at least two points. One stray sample collapses the
+    # x-axis to a millisecond span, so we show the empty-state instead.
+    empty? = total_points < 2
 
     assigns =
       assigns
-      |> assign(:polyline, polyline)
-      |> assign(:min_v, min_v)
-      |> assign(:max_v, max_v)
-      |> assign(:viewbox, "0 0 #{@viewbox_width} #{@viewbox_height}")
-      |> assign(:stroke_var, "var(--mast-chart-#{assigns.color})")
+      |> assign(:series_json, Jason.encode!(series))
+      |> assign(:empty?, empty?)
+      |> assign(:since_ms, to_unix_ms(assigns[:since]))
+      |> assign(:until_ms, to_unix_ms(assigns[:until]))
 
     ~H"""
     <div class="w-full">
-      <%= if @points == [] do %>
+      <%= if @empty? do %>
         <div class="h-[180px] flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--mast-bg-secondary)] text-xs text-[var(--mast-font-tertiary)]">
-          Collecting first sample...
+          Waiting for more samples...
         </div>
       <% else %>
-        <svg
-          viewBox={@viewbox}
-          preserveAspectRatio="none"
-          class="w-full h-[180px] rounded-[var(--radius-sm)] bg-[var(--mast-bg-secondary)]"
-          aria-label={@label}
-        >
-          <polyline
-            points={@polyline}
-            fill="none"
-            stroke={@stroke_var}
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        <div class="flex justify-between text-[10px] text-[var(--mast-font-tertiary)] mt-1 px-1">
-          <span>min {format_value(@min_v)}{@unit}</span>
-          <span>max {format_value(@max_v)}{@unit}</span>
+        <div class="w-full h-[180px] relative">
+          <canvas
+            id={@id}
+            phx-hook=".MetricChart"
+            phx-update="ignore"
+            data-series={@series_json}
+            data-unit={@unit}
+            data-y-format={@y_format}
+            data-since={@since_ms}
+            data-until={@until_ms}
+            aria-label={@label}
+            class="rounded-[var(--radius-sm)] bg-[var(--mast-bg-secondary)]"
+          >
+          </canvas>
         </div>
       <% end %>
     </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".MetricChart">
+      import Chart from "chart.js/auto"
+      import zoomPlugin from "chartjs-plugin-zoom"
+      import "chartjs-adapter-date-fns"
+
+      Chart.register(zoomPlugin)
+
+      function cssVar(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+      }
+
+      function fmtY(v, format) {
+        if (v == null || isNaN(v)) return ""
+        if (format === "percent") return `${Math.round(v)}`
+        if (format === "mb_s") return v.toFixed(2)
+        return Number.isInteger(v) ? v.toString() : v.toFixed(2)
+      }
+
+      export default {
+        mounted() {
+          this.render()
+          this.el.addEventListener("dblclick", () => this.chart?.resetZoom())
+        },
+        updated() { this.render() },
+        destroyed() { this.chart?.destroy() },
+        render() {
+          const series = JSON.parse(this.el.dataset.series)
+          const unit = this.el.dataset.unit || ""
+          const yFormat = this.el.dataset.yFormat || "number"
+          const sinceMs = Number(this.el.dataset.since) || undefined
+          const untilMs = Number(this.el.dataset.until) || undefined
+
+          const datasets = series.map(s => {
+            const color = cssVar(`--mast-chart-${s.color}`) || "#60a5fa"
+            return {
+              label: s.name,
+              data: s.points.map(p => ({ x: new Date(p.t).getTime(), y: p.v })),
+              borderColor: color,
+              backgroundColor: color + "33",
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              tension: 0.2,
+              fill: false,
+            }
+          })
+
+          if (this.chart) {
+            this.chart.data.datasets = datasets
+            this.chart.options.scales.x.min = sinceMs
+            this.chart.options.scales.x.max = untilMs
+            this.chart.update("none")
+            return
+          }
+
+          const tickColor = cssVar("--mast-font-tertiary") || "#9ca3af"
+          const gridColor = (cssVar("--mast-border") || "#374151") + "55"
+
+          this.chart = new Chart(this.el, {
+            type: "line",
+            data: { datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              parsing: false,
+              interaction: { mode: "index", intersect: false },
+              plugins: {
+                legend: {
+                  display: datasets.length > 1,
+                  position: "top",
+                  align: "end",
+                  labels: { color: tickColor, boxWidth: 8, boxHeight: 8, font: { size: 10 } },
+                },
+                tooltip: {
+                  mode: "index",
+                  intersect: false,
+                  callbacks: {
+                    label: ctx => `${ctx.dataset.label}: ${fmtY(ctx.parsed.y, yFormat)}${unit}`,
+                  },
+                },
+                zoom: {
+                  zoom: {
+                    drag: { enabled: true, backgroundColor: "rgba(96,165,250,0.15)" },
+                    mode: "x",
+                  },
+                  pan: { enabled: false },
+                },
+              },
+              scales: {
+                x: {
+                  type: "time",
+                  min: sinceMs,
+                  max: untilMs,
+                  time: { tooltipFormat: "PPp" },
+                  ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 10 } },
+                  grid: { color: gridColor },
+                },
+                y: {
+                  beginAtZero: yFormat === "percent",
+                  max: yFormat === "percent" ? 100 : undefined,
+                  ticks: {
+                    color: tickColor,
+                    font: { size: 10 },
+                    callback: v => fmtY(v, yFormat),
+                  },
+                  grid: { color: gridColor },
+                },
+              },
+            },
+          })
+        },
+      }
+    </script>
     """
   end
 
-  defp build_polyline([]), do: {"", 0.0, 0.0}
-
-  defp build_polyline(points) do
-    values = Enum.map(points, &numeric_v/1)
-    min_v = Enum.min(values, fn -> 0.0 end) * 1.0
-    max_v = Enum.max(values, fn -> 0.0 end) * 1.0
-    span = if max_v - min_v == 0, do: 1.0, else: max_v - min_v
-
-    n = length(points) - 1
-
-    coords =
-      points
-      |> Enum.with_index()
-      |> Enum.map(fn {%{} = p, i} ->
-        x = if n == 0, do: @viewbox_width / 2, else: i / n * @viewbox_width
-        v = numeric_v(p)
-        y = @viewbox_height - (v - min_v) / span * @viewbox_height
-        "#{Float.round(x, 2)},#{Float.round(y * 1.0, 2)}"
-      end)
-
-    {Enum.join(coords, " "), min_v, max_v}
+  defp encode_series(%{series: list}) when is_list(list) and list != [] do
+    Enum.map(list, fn s ->
+      %{
+        name: Map.get(s, :name, ""),
+        color: Map.get(s, :color, "blue"),
+        points: encode_points(Map.get(s, :points, []))
+      }
+    end)
   end
 
-  defp numeric_v(%{v: v}) when is_number(v), do: v * 1.0
-  defp numeric_v(_), do: 0.0
+  defp encode_series(%{points: points} = a) when is_list(points) do
+    [
+      %{
+        name: Map.get(a, :label, ""),
+        color: Map.get(a, :color, "blue"),
+        points: encode_points(points)
+      }
+    ]
+  end
 
-  defp format_value(v) when is_float(v), do: :erlang.float_to_binary(v, decimals: 1)
-  defp format_value(v), do: to_string(v)
+  defp encode_series(_), do: []
+
+  defp encode_points(points) do
+    points
+    |> Enum.filter(fn p -> is_number(Map.get(p, :v)) end)
+    |> Enum.map(fn %{t: t, v: v} -> %{t: encode_t(t), v: v} end)
+  end
+
+  defp encode_t(%DateTime{} = t), do: DateTime.to_iso8601(t)
+  defp encode_t(%NaiveDateTime{} = t), do: NaiveDateTime.to_iso8601(t)
+  defp encode_t(t), do: to_string(t)
+
+  defp to_unix_ms(%DateTime{} = t), do: DateTime.to_unix(t, :millisecond)
+  defp to_unix_ms(_), do: nil
 end

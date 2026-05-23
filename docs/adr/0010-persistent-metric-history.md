@@ -81,8 +81,9 @@ Server detail page renders six charts (CPU, memory, disk, disk I/O,
 bandwidth, load) as server-rendered SVG function components. A range
 dropdown picks the lookback window and the bucket to read in one move
 (1h -> 1m, 12h -> 10m, 24h -> 20m, 7d -> 120m, 30d -> 480m). Default is 1h.
-SVG was picked for v1 simplicity. A follow-up issue will upgrade to a
-Canvas or Chart.js renderer when we want tooltips, zoom, or overlays.
+SVG was picked for v1 simplicity. ADR 0011 records the follow-up
+migration to a Chart.js + canvas renderer, which adds tooltips,
+x-axis zoom, and multi-series overlays for rx/tx and read/write.
 
 ## Consequences
 

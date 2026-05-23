@@ -11,6 +11,8 @@
 | 0007 | [Audit log from day one](0007-audit-log.md) | Accepted |
 | 0008 | [Releases as first-class, with per-Release Log Source](0008-releases-and-log-source.md) | Accepted |
 | 0009 | [Primary keys are UUIDs (binary_id)](0009-binary-id-primary-keys.md) | Accepted |
+| 0010 | [Persistent metric history](0010-persistent-metric-history.md) | Accepted |
+| 0011 | [Chart.js renderer for metrics history](0011-chartjs-renderer.md) | Accepted |
 
 New ADRs: copy an existing file, bump the number, fill in Context / Decision /
 Consequences. Keep them under one page.

@@ -16,6 +16,8 @@ defmodule MastWeb.ServerLive.OverviewTab do
   attr :activity, :list, required: true
   attr :range, :string, required: true
   attr :series, :map, required: true
+  attr :range_since, :any, default: nil
+  attr :range_until, :any, default: nil
   attr :latest_sample, :map, default: %{}
 
   def render(assigns) do
@@ -76,36 +78,82 @@ defmodule MastWeb.ServerLive.OverviewTab do
       <div class="grid lg:grid-cols-2 gap-3">
         <.ui_chart_card title="CPU over time">
           <:badge>{range_label(@range)}</:badge>
-          <.line_chart points={@series["cpu"]} color="blue" label="CPU %" unit="%" />
+          <.line_chart
+            id={"chart-cpu-#{@server.id}"}
+            points={@series["cpu"]}
+            color="blue"
+            label="CPU %"
+            unit="%"
+            y_format="percent"
+            since={@range_since}
+            until={@range_until}
+          />
         </.ui_chart_card>
         <.ui_chart_card title="Memory over time">
           <:badge>{range_label(@range)}</:badge>
-          <.line_chart points={@series["memory"]} color="purple" label="Memory %" unit="%" />
+          <.line_chart
+            id={"chart-memory-#{@server.id}"}
+            points={@series["memory"]}
+            color="purple"
+            label="Memory %"
+            unit="%"
+            y_format="percent"
+            since={@range_since}
+            until={@range_until}
+          />
         </.ui_chart_card>
         <.ui_chart_card title="Disk over time">
           <:badge>{range_label(@range)}</:badge>
-          <.line_chart points={@series["disk_root"]} color="green" label="Disk %" unit="%" />
+          <.line_chart
+            id={"chart-disk-#{@server.id}"}
+            points={@series["disk_root"]}
+            color="green"
+            label="Disk %"
+            unit="%"
+            y_format="percent"
+            since={@range_since}
+            until={@range_until}
+          />
         </.ui_chart_card>
         <.ui_chart_card title="Load avg (1m)">
           <:badge>{range_label(@range)}</:badge>
-          <.line_chart points={@series["load_1"]} color="blue" label="Load 1m" />
+          <.line_chart
+            id={"chart-load-#{@server.id}"}
+            points={@series["load_1"]}
+            color="blue"
+            label="Load 1m"
+            since={@range_since}
+            until={@range_until}
+          />
         </.ui_chart_card>
         <.ui_chart_card title="Bandwidth (rx + tx)">
           <:badge>{range_label(@range)}</:badge>
           <.line_chart
-            points={combine_pair(@series["rx_bytes_s"], @series["tx_bytes_s"])}
-            color="purple"
+            id={"chart-bandwidth-#{@server.id}"}
+            series={[
+              %{name: "rx", color: "blue", points: to_mb_s(@series["rx_bytes_s"] || [])},
+              %{name: "tx", color: "purple", points: to_mb_s(@series["tx_bytes_s"] || [])}
+            ]}
             label="MB/s"
             unit=" MB/s"
+            y_format="mb_s"
+            since={@range_since}
+            until={@range_until}
           />
         </.ui_chart_card>
         <.ui_chart_card title="Disk I/O (read + write)">
           <:badge>{range_label(@range)}</:badge>
           <.line_chart
-            points={combine_pair(@series["io_r_bytes_s"], @series["io_w_bytes_s"])}
-            color="green"
+            id={"chart-disk-io-#{@server.id}"}
+            series={[
+              %{name: "read", color: "green", points: to_mb_s(@series["io_r_bytes_s"] || [])},
+              %{name: "write", color: "blue", points: to_mb_s(@series["io_w_bytes_s"] || [])}
+            ]}
             label="MB/s"
             unit=" MB/s"
+            y_format="mb_s"
+            since={@range_since}
+            until={@range_until}
           />
         </.ui_chart_card>
       </div>
@@ -195,21 +243,6 @@ defmodule MastWeb.ServerLive.OverviewTab do
   defp range_label("7d"), do: "Last 7d"
   defp range_label("30d"), do: "Last 30d"
   defp range_label(_), do: ""
-
-  # Sums two byte-rate series timepoint-by-timepoint, converting bytes/s to
-  # decimal MB/s for display.
-  defp combine_pair(nil, nil), do: []
-  defp combine_pair(a, nil), do: to_mb_s(a || [])
-  defp combine_pair(nil, b), do: to_mb_s(b || [])
-
-  defp combine_pair(a, b) do
-    by_t = Map.new(b, &{&1.t, &1.v})
-
-    Enum.map(a, fn %{t: t, v: v} ->
-      total = v + Map.get(by_t, t, 0)
-      %{t: t, v: total / 1_000_000}
-    end)
-  end
 
   defp to_mb_s(points) do
     Enum.map(points, fn %{t: t, v: v} -> %{t: t, v: v / 1_000_000} end)
