@@ -11,6 +11,7 @@ defmodule Mast.Fleet do
   alias Mast.Audit
   alias Mast.Fleet.Release
   alias Mast.Fleet.Server
+  alias Mast.Fleet.ServerStat
   alias Mast.Repo
 
   @doc "Returns all servers, ordered by name."
@@ -94,6 +95,33 @@ defmodule Mast.Fleet do
     s
     |> Server.meta_changeset(attrs)
     |> Repo.update()
+  end
+
+  @doc """
+  Inserts a time-bucketed metrics sample.
+
+  `attrs` shape: `%{bucket, recorded_at, stats}`. The `server_id` is taken
+  from the given server. See `Mast.Fleet.ServerStat` for the `stats` blob
+  contract.
+  """
+  def record_sample(%Server{id: server_id}, attrs) do
+    attrs
+    |> Map.new()
+    |> Map.put(:server_id, server_id)
+    |> then(&ServerStat.changeset(%ServerStat{}, &1))
+    |> Repo.insert()
+  end
+
+  @doc """
+  Lists stats rows for a server in one bucket since `since_dt`, ordered asc.
+  """
+  def list_stats(server_id, bucket, %DateTime{} = since_dt) when is_binary(server_id) do
+    ServerStat
+    |> where([s], s.server_id == ^server_id)
+    |> where([s], s.bucket == ^bucket)
+    |> where([s], s.recorded_at >= ^since_dt)
+    |> order_by([s], asc: s.recorded_at)
+    |> Repo.all()
   end
 
   @doc """
