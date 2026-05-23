@@ -40,3 +40,6 @@ npm-debug.log
 # Per-operator SSH keys staged for the SSHKit user_dir.
 /priv/ssh/
 
+# Per-machine mise overrides (port, env, etc.)
+mise.local.toml
+
