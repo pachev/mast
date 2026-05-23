@@ -26,7 +26,7 @@ defmodule MastWeb.ApplicationLive.View do
     <Layouts.app flash={@flash} active="servers" page_title={@app.name}>
       <.detail_header app={@app} server={@server} release={@release} refreshing?={@refreshing?} />
 
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <.ui_stat_tile
           icon="hero-cpu-chip"
           label="Memory"
@@ -103,10 +103,9 @@ defmodule MastWeb.ApplicationLive.View do
   defp system_snapshot(assigns) do
     ~H"""
     <section class="mt-6 rounded-[var(--radius-lg)] bg-[var(--mast-bg-card)] border border-[var(--mast-border)] p-5">
-      <header class="flex items-center mb-4">
+      <header class="flex flex-wrap items-center gap-2 mb-4">
         <h3 class="text-[15px] font-semibold text-[var(--mast-font-primary)]">System snapshot</h3>
-        <span class="flex-1" />
-        <.ui_badge variant="online" size="sm">live</.ui_badge>
+        <.ui_badge variant="online" size="sm" class="ml-auto">live</.ui_badge>
       </header>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -152,9 +151,11 @@ defmodule MastWeb.ApplicationLive.View do
 
   defp snapshot_row(assigns) do
     ~H"""
-    <div class="flex items-center gap-3">
-      <span class="text-[13px] text-[var(--mast-font-secondary)] w-44 shrink-0">{@label}</span>
-      <div class="flex-1">{render_slot(@inner_block)}</div>
+    <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+      <span class="text-[13px] text-[var(--mast-font-secondary)] sm:w-44 shrink-0">
+        {@label}
+      </span>
+      <div class="flex-1 min-w-0">{render_slot(@inner_block)}</div>
     </div>
     """
   end
@@ -186,7 +187,7 @@ defmodule MastWeb.ApplicationLive.View do
           style={"width: #{pct_of(Map.get(@categories, key), @total)}%; background-color: #{color};"}
         />
       </div>
-      <ul class="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
         <li :for={{key, label, color} <- @cats} class="flex items-center gap-2">
           <span class="size-2 rounded-sm shrink-0" style={"background-color: #{color};"} />
           <span class="text-[var(--mast-font-secondary)]">{label}</span>
@@ -279,12 +280,14 @@ defmodule MastWeb.ApplicationLive.View do
     ~H"""
     <section class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
       <.proc_table
+        id="proc-top-memory"
         title="Top by memory"
         rows={@memory}
         value_label="Memory"
         value_fn={&format_bytes(&1[:memory])}
       />
       <.proc_table
+        id="proc-top-msgq"
         title="Top by message queue"
         rows={@msgq}
         value_label="Queue"
@@ -294,6 +297,7 @@ defmodule MastWeb.ApplicationLive.View do
     """
   end
 
+  attr :id, :string, required: true
   attr :title, :string, required: true
   attr :rows, :list, required: true
   attr :value_label, :string, required: true
@@ -301,37 +305,25 @@ defmodule MastWeb.ApplicationLive.View do
 
   defp proc_table(assigns) do
     ~H"""
-    <div class="rounded-[var(--radius-lg)] bg-[var(--mast-bg-card)] border border-[var(--mast-border)] overflow-hidden">
-      <header class="flex items-center h-12 px-4 border-b border-[var(--mast-border)]">
+    <.ui_table id={@id} rows={@rows} size="sm" empty="No processes reported.">
+      <:action_bar>
         <h3 class="text-[14px] font-semibold text-[var(--mast-font-primary)]">{@title}</h3>
-      </header>
-      <div :if={@rows == []} class="px-4 py-6 text-[13px] text-[var(--mast-font-tertiary)]">
-        No processes reported.
-      </div>
-      <table :if={@rows != []} class="w-full text-[12px]">
-        <thead>
-          <tr class="text-left text-[var(--mast-font-tertiary)]">
-            <th class="font-medium px-4 py-2">Process</th>
-            <th class="font-medium px-4 py-2 text-right">{@value_label}</th>
-            <th class="font-medium px-4 py-2 text-right">Reductions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            :for={row <- @rows}
-            class="border-t border-[var(--mast-border)]"
-          >
-            <td class="px-4 py-2 font-mono truncate max-w-[180px]">
-              {row[:name] || row[:pid]}
-            </td>
-            <td class="px-4 py-2 text-right font-mono tabular-nums">{@value_fn.(row)}</td>
-            <td class="px-4 py-2 text-right font-mono tabular-nums text-[var(--mast-font-secondary)]">
-              {format_int(row[:reductions])}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      </:action_bar>
+      <:col :let={row} label="Process" class="font-mono truncate max-w-[180px]">
+        {row[:name] || row[:pid]}
+      </:col>
+      <:col :let={row} label={@value_label} align="right" class="font-mono tabular-nums">
+        {@value_fn.(row)}
+      </:col>
+      <:col
+        :let={row}
+        label="Reductions"
+        align="right"
+        class="font-mono tabular-nums text-[var(--mast-font-secondary)]"
+      >
+        {format_int(row[:reductions])}
+      </:col>
+    </.ui_table>
     """
   end
 

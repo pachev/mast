@@ -192,68 +192,58 @@ defmodule MastWeb.SettingsLive do
         </.form>
       </div>
 
-      <div class="bg-[var(--mast-bg-card)] border border-[var(--mast-border)] rounded-[var(--radius-box)] overflow-hidden">
-        <%= if @keys == [] do %>
+      <%= if @keys == [] do %>
+        <div class="bg-[var(--mast-bg-card)] border border-[var(--mast-border)] rounded-[var(--radius-box)] overflow-hidden">
           <.ui_empty
             icon="hero-key"
             title="No SSH keys yet"
             body="Add an Ed25519 or RSA private key to connect to your servers."
           />
-        <% else %>
-          <div class="overflow-x-auto">
-            <table class="w-full table table-zebra table-sm">
-              <thead class="bg-[var(--mast-bg-secondary)] text-[var(--mast-font-secondary)]">
-                <tr>
-                  <th class="text-left text-xs font-semibold uppercase tracking-wider">Name</th>
-                  <th class="text-left text-xs font-semibold uppercase tracking-wider">Type</th>
-                  <th class="text-left text-xs font-semibold uppercase tracking-wider">
-                    Fingerprint
-                  </th>
-                  <th class="text-left text-xs font-semibold uppercase tracking-wider">Servers</th>
-                  <th class="text-left text-xs font-semibold uppercase tracking-wider">Created</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={k <- @keys} class="hover:bg-[var(--mast-bg-card-hover)]">
-                  <td class="font-mono font-medium text-[var(--mast-font-primary)]">
-                    <span class="inline-flex items-center gap-2">
-                      <span class="hero-key size-4 text-[var(--mast-font-tertiary)]" />
-                      {k.name}
-                    </span>
-                  </td>
-                  <td>
-                    <.ui_badge variant={algo_variant(k.algorithm)} dot={false}>
-                      {k.algorithm || "—"}
-                    </.ui_badge>
-                  </td>
-                  <td class="font-mono text-xs text-[var(--mast-font-secondary)]">
-                    {short_fp(k.fingerprint)}
-                  </td>
-                  <td class="font-mono text-[var(--mast-font-primary)] tabular-nums">
-                    {server_count_label(@server_counts, k.id)}
-                  </td>
-                  <td class="text-xs text-[var(--mast-font-secondary)]">
-                    {format_date(k.inserted_at)}
-                  </td>
-                  <td class="text-right">
-                    <button
-                      type="button"
-                      phx-click="delete-key"
-                      phx-value-id={k.id}
-                      data-confirm={"Delete key #{k.name}? Servers using it will lose their key reference."}
-                      class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-status-offline)] p-1"
-                      aria-label="Delete key"
-                    >
-                      <span class="hero-trash size-4" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        <% end %>
-      </div>
+        </div>
+      <% else %>
+        <.ui_table id="ssh-keys" rows={@keys} size="sm">
+          <:col :let={k} label="Name">
+            <span class="inline-flex items-center gap-2 font-mono font-medium text-[var(--mast-font-primary)]">
+              <span class="hero-key size-4 text-[var(--mast-font-tertiary)]" />
+              {k.name}
+            </span>
+          </:col>
+          <:col :let={k} label="Type">
+            <.ui_badge variant={algo_variant(k.algorithm)} dot={false}>
+              {k.algorithm || "—"}
+            </.ui_badge>
+          </:col>
+          <:col
+            :let={k}
+            label="Fingerprint"
+            class="font-mono text-xs text-[var(--mast-font-secondary)]"
+          >
+            {short_fp(k.fingerprint)}
+          </:col>
+          <:col
+            :let={k}
+            label="Servers"
+            class="font-mono text-[var(--mast-font-primary)] tabular-nums"
+          >
+            {server_count_label(@server_counts, k.id)}
+          </:col>
+          <:col :let={k} label="Created" class="text-xs text-[var(--mast-font-secondary)]">
+            {format_date(k.inserted_at)}
+          </:col>
+          <:col :let={k} align="right">
+            <button
+              type="button"
+              phx-click="delete-key"
+              phx-value-id={k.id}
+              data-confirm={"Delete key #{k.name}? Servers using it will lose their key reference."}
+              class="text-[var(--mast-font-tertiary)] hover:text-[var(--mast-status-offline)] p-1"
+              aria-label="Delete key"
+            >
+              <span class="hero-trash size-4" />
+            </button>
+          </:col>
+        </.ui_table>
+      <% end %>
 
       <div class="flex items-start gap-3 px-4 py-3 bg-[var(--mast-bg-secondary)] rounded-[var(--radius-field)] text-[13px] text-[var(--mast-font-secondary)]">
         <span class="hero-information-circle size-4 shrink-0 mt-0.5" />

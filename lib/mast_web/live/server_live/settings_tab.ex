@@ -13,25 +13,13 @@ defmodule MastWeb.ServerLive.SettingsTab do
   def render(assigns) do
     ~H"""
     <div class="space-y-5">
-      <.ui_card>
-        <:title>Connection</:title>
-        <:subtitle>SSH details for this host</:subtitle>
-
-        <dl class="grid grid-cols-2 gap-y-3 text-sm">
-          <dt class="text-[var(--mast-font-secondary)]">Host</dt>
-          <dd class="font-mono text-[var(--mast-font-primary)]">{@server.host}</dd>
-          <dt class="text-[var(--mast-font-secondary)]">User</dt>
-          <dd class="font-mono text-[var(--mast-font-primary)]">{@server.user}</dd>
-          <dt class="text-[var(--mast-font-secondary)]">Port</dt>
-          <dd class="font-mono text-[var(--mast-font-primary)]">{@server.port}</dd>
-          <dt class="text-[var(--mast-font-secondary)]">OS</dt>
-          <dd class="font-mono text-[var(--mast-font-primary)]">{@server.os_id || "—"}</dd>
-          <dt class="text-[var(--mast-font-secondary)]">Package manager</dt>
-          <dd class="font-mono text-[var(--mast-font-primary)]">
-            {@server.package_manager || "—"}
-          </dd>
-        </dl>
-      </.ui_card>
+      <.ui_kv_table title="Connection">
+        <:row label="Host">{@server.host}</:row>
+        <:row label="User">{@server.user}</:row>
+        <:row label="Port">{@server.port}</:row>
+        <:row label="OS">{@server.os_id || "—"}</:row>
+        <:row label="Package manager">{@server.package_manager || "—"}</:row>
+      </.ui_kv_table>
 
       <div class="rounded-[var(--radius-box)] border border-[var(--mast-status-offline)] bg-[var(--mast-bg-card)] p-6">
         <div class="flex items-center justify-between gap-4 flex-wrap">

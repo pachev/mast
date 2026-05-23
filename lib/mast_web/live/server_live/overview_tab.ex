@@ -22,7 +22,7 @@ defmodule MastWeb.ServerLive.OverviewTab do
 
   def render(assigns) do
     ~H"""
-    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
       <.ui_stat
         label="CPU Usage"
         value={format_pct(@server.cpu)}
