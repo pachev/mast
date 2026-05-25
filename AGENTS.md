@@ -85,6 +85,26 @@ custom classes must fully style the input
 - Elixir's builtin OTP primitives like `DynamicSupervisor` and `Registry`, require names in the child spec, such as `{DynamicSupervisor, name: MyApp.MyDynamicSup}`, then you can use `DynamicSupervisor.start_child(MyApp.MyDynamicSup, child_spec)`
 - Use `Task.async_stream(collection, callback, options)` for concurrent enumeration with back-pressure. The majority of times you will want to pass `timeout: :infinity` as option
 
+### Favor simplicity over abstraction
+
+Elixir rewards plain functions and plain data. The common failure mode is reaching for structure the problem does not yet have. **Default to the simplest thing that works; add a layer only when a second caller or a real boundary forces it.**
+
+- **Do not introduce a GenServer, Agent, or ETS table for state that has no concurrency requirement.** A module of pure functions, a value passed through the pipeline, or a row in the database is almost always the right answer. A process is justified only when independent processes must share or serialize access to mutable state across requests, or when you need periodic/background work. If you cannot name the concurrent access pattern, you do not need a process.
+- **Do not define a behaviour, protocol, or callback for a single implementation.** One implementation is a function, not an abstraction. Add the behaviour when the second implementation actually exists.
+- **Do not create wrapper modules that only delegate to one other module.** If a module's every function is a one-line pass-through, inline it at the call site or fold it into the module it wraps.
+- **Do not extract a helper into its own module when it has exactly one caller and no public API reason to be separate.** Keep it a `defp` in the caller. Extract only when a real seam appears (a second caller, a `<500`-line split along a genuine sub-context, a documented boundary).
+- **Do not reimplement what Ecto, Phoenix, or the standard library already provide.** No hand-rolled query builders, validation frameworks, or state machines where `Ecto.Changeset`, `Ecto.Multi`, or a status column with guard clauses would do.
+- **Avoid OOP-imported naming.** Modules named `*Manager`, `*Coordinator`, `*Service`, or `*Handler` usually signal an object pretending to be a context. Name modules for the domain concept, not for a role in a design pattern.
+- **Reach for a macro only when a function cannot express it.** Compile-time code generation, custom DSLs, and `use` hooks are the exception, not the default.
+
+### Misused concurrency
+
+The BEAM makes spawning cheap, which tempts agents to spawn for work that gains nothing from it. Concurrency is a tool for independent work, back-pressure, and isolation, not a reflex.
+
+- **Do not `Task.async`, `spawn`, or `spawn_link` for trivial synchronous work.** If the caller immediately awaits the result and the work is fast, just call the function. A `Task` you create and `Task.await` in the next line is pure overhead.
+- **Never leave a spawned process unsupervised.** Raw `spawn` and `Task.start` outside a supervision tree are forbidden. Use the `Mast.TaskSupervisor` already in the supervision tree, put long-lived processes in the application's supervision tree, or use `start_async/3` inside a LiveView. Fire-and-forget work must still be supervised so failures surface.
+- **Never silently swallow errors in background work.** A `rescue _ -> :ok` (or `catch`) with no log line or telemetry event turns a failing subsystem invisible. If you rescue in a flush loop, a cast handler, or a task, emit `Logger.warning/2` or `:telemetry.execute/3` before recovering. Lost data with no signal is worse than a crash.
+
 ## Mix guidelines
 
 - Read the docs and options before using tasks (by using `mix help task_name`)
@@ -218,6 +238,38 @@ custom classes must fully style the input
 - **Never** use the deprecated `live_redirect` and `live_patch` functions, instead **always** use the `<.link navigate={href}>` and  `<.link patch={href}>` in templates, and `push_navigate` and `push_patch` functions LiveViews
 - **Avoid LiveComponent's** unless you have a strong, specific need for them
 - LiveViews should be named like `AppWeb.WeatherLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `AppWeb` module, so you can just do `live "/weather", WeatherLive`
+
+### Keep the LiveView process responsive
+
+A LiveView is a process with a single mailbox. Anything that blocks a callback blocks every other message (events, diffs, `handle_info`) for that user's session. Treat the callbacks as hot paths.
+
+- **Never block a callback on slow I/O.** No synchronous HTTP requests, no email delivery (`Mailer.deliver/1`), no file/S3 uploads, no long-running queries run inline in `handle_event`, `handle_info`, `handle_params`, or `mount`. Offload them:
+  - **Fire-and-forget** (caller does not need the result, e.g. sending an email then redirecting): run it under the `Mast.TaskSupervisor` already in the supervision tree. **Never** use bare `Task.start`, which is unsupervised.
+
+        Task.Supervisor.start_child(Mast.TaskSupervisor, fn ->
+          Accounts.deliver_some_notification(user, ...)
+        end)
+
+  - **Result needed in the view** (dashboard data, search results): use `assign_async/3` or `start_async/3` + `handle_async/3` so the process keeps handling messages while the work runs and the template shows a loading state.
+- **Never set an infinite or long timeout inside a callback** to wait on something. Blocking the process on a timeout defeats the point of LiveView. Push the wait to an async task and let the result arrive as a message.
+- **Never `Process.sleep/1` in a LiveView.** If you need a delay, `Process.send_after(self(), :msg, ms)` and handle `:msg` in `handle_info`.
+- **Guard expensive `mount` work with `connected?/1`.** `mount` runs twice per page load (static HTTP render, then the WebSocket connect). Queries that run on both double your DB load for no benefit. Run them only on the connected mount, or use `assign_async`:
+
+        def mount(_params, _session, socket) do
+          socket = assign(socket, :page_title, "Dashboard")
+
+          socket =
+            if connected?(socket) do
+              load_dashboard_data(socket)
+            else
+              assign_loading_placeholders(socket)
+            end
+
+          {:ok, socket}
+        end
+
+- **Never consume a one-time token in `mount`.** A `mount` branch whose only job is to run a DB transaction and then `push_navigate` belongs in a plain controller action, not a LiveView. Token consumption (email confirmation, magic-link verification) is canonical controller work.
+- **Watch for N+1 in callbacks.** `Enum.map(ids, &get!/1)` fires one query per id. Use a single `where: x.id in ^ids` fetch and build a lookup map. Always preload associations a template will touch.
 
 ### LiveView streams
 
