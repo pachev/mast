@@ -29,9 +29,14 @@ defmodule Mast.Workers.ApplyUpdates do
 
   alias Mast.Audit
   alias Mast.Fleet
-  alias Mast.Patches.Apt
+  alias Mast.Patches.{Apt, Runs}
   alias Mast.SSH
   alias Mast.Workers.PatchScan
+
+  # Flush the persisted log to the DB every this-many buffered lines. PubSub
+  # broadcasts stay per-line (cheap); DB writes are batched. A reload mid-run
+  # sees everything committed up to the last flush, which is plenty for apt.
+  @flush_every 25
 
   @impl Oban.Worker
   def perform(%Oban.Job{
@@ -44,7 +49,10 @@ defmodule Mast.Workers.ApplyUpdates do
 
     case build_command(server, scope, package) do
       {:ok, command} ->
-        outcome = stream(server, command, run_id)
+        {:ok, run} =
+          Runs.start_run(%{server_id: server.id, run_id: run_id, scope: scope, package: package})
+
+        outcome = stream(server, command, run_id, run)
         audit(server, scope, package, outcome)
         enqueue_rescan(server)
         :ok
@@ -101,23 +109,56 @@ defmodule Mast.Workers.ApplyUpdates do
   defp sudo(%{user: "root"}, cmd), do: cmd
   defp sudo(_server, cmd), do: "sudo -n " <> cmd
 
-  defp stream(server, command, run_id) do
+  defp stream(server, command, run_id, run) do
     topic = "runs:#{run_id}"
 
-    SSH.run_stream(
-      server,
-      command,
-      fn event, acc ->
-        Phoenix.PubSub.broadcast(Mast.PubSub, topic, {:run_event, run_id, event})
+    final =
+      SSH.run_stream(
+        server,
+        command,
+        fn event, acc ->
+          Phoenix.PubSub.broadcast(Mast.PubSub, topic, {:run_event, run_id, event})
+          reduce(event, acc)
+        end,
+        %{run: run, buffer: [], outcome: :no_exit}
+      )
 
-        case event do
-          {:exit, _} -> event
-          {:error, _} -> event
-          _ -> acc
-        end
-      end,
-      :no_exit
-    )
+    persist_close(final)
+  end
+
+  # Buffer stdout/stderr lines, flushing to the DB every @flush_every. Capture
+  # the terminal event so we can record status + exit code after closing.
+  defp reduce({:line, _kind, data}, %{buffer: buffer} = acc) do
+    buffer = [String.trim_trailing(data, "\n") | buffer]
+
+    if length(buffer) >= @flush_every do
+      %{acc | run: flush(acc.run, buffer), buffer: []}
+    else
+      %{acc | buffer: buffer}
+    end
+  end
+
+  defp reduce({:exit, code}, acc), do: %{acc | outcome: {:exit, code}}
+  defp reduce({:error, reason}, acc), do: %{acc | outcome: {:error, reason}}
+  defp reduce(_event, acc), do: acc
+
+  defp flush(run, buffer) do
+    {:ok, run} = Runs.append(run, Enum.reverse(buffer))
+    run
+  end
+
+  # Final flush + status write. Returns the outcome for the audit log.
+  defp persist_close(%{run: run, buffer: buffer, outcome: outcome}) do
+    run = if buffer == [], do: run, else: flush(run, buffer)
+
+    case outcome do
+      {:exit, code} when code == 0 -> Runs.finish(run, :done, exit_code: code)
+      {:exit, code} -> Runs.finish(run, :error, exit_code: code)
+      {:error, reason} -> Runs.finish(run, :error, error: inspect(reason))
+      :no_exit -> Runs.finish(run, :error, error: "stream closed without exit")
+    end
+
+    outcome
   end
 
   defp enqueue_rescan(server) do

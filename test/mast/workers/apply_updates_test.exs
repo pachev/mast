@@ -3,6 +3,7 @@ defmodule Mast.Workers.ApplyUpdatesTest do
   use Oban.Testing, repo: Mast.Repo
 
   alias Mast.Fleet
+  alias Mast.Patches.Runs
   alias Mast.SSH.Stub
   alias Mast.Workers.ApplyUpdates
 
@@ -48,6 +49,43 @@ defmodule Mast.Workers.ApplyUpdatesTest do
 
       # Side-effect: a PatchScan job should be enqueued for that server.
       assert_enqueued(worker: Mast.Workers.PatchScan, args: %{"server_id" => server.id})
+
+      # Persistence: the run row holds the accumulated log + a done status.
+      run = Runs.get_for_server(server.id)
+      assert run.run_id == run_id
+      assert run.status == "done"
+      assert run.exit_code == 0
+      assert run.log =~ "Reading package lists..."
+      assert run.log =~ "Setting up curl"
+    end
+
+    test "persists an error run when the command exits non-zero" do
+      {:ok, server} = Fleet.create_server(%{name: "web-fail", host: "10.0.0.8"})
+      {:ok, server} = Fleet.update_server_meta(server, %{package_manager: "apt"})
+
+      Stub.expect_stream(
+        server,
+        "sudo -n apt-get update -qq && sudo -n DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
+        [
+          {:line, :stderr, "E: Could not get lock\n"},
+          {:exit, 100}
+        ]
+      )
+
+      Stub.expect(server, "sudo -n apt-get update -qq", {:ok, ""})
+      Stub.expect(server, "LANG=C apt list --upgradable 2>/dev/null", {:ok, "Listing... Done\n"})
+
+      :ok =
+        perform_job(ApplyUpdates, %{
+          "server_id" => server.id,
+          "run_id" => "fail-run",
+          "scope" => "all"
+        })
+
+      run = Runs.get_for_server(server.id)
+      assert run.status == "error"
+      assert run.exit_code == 100
+      assert run.log =~ "Could not get lock"
     end
 
     test "rejects servers without a supported package manager" do

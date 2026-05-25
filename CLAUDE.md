@@ -62,18 +62,14 @@ sweep twice.
 
 ## Architecture decisions
 
-ADRs live in `docs/adr/` and are numbered sequentially. Read these before
-making structural changes; they capture rationale that isn't in the code:
+ADRs live in `docs/adr/` and are numbered sequentially. The full index is in
+`docs/adr/README.md` — read the relevant ones before making structural
+changes; they capture rationale that isn't in the code.
 
-- 0001 — architecture overview
-- 0002 — Phoenix over running Coolify
-- 0003 — SSH executor as a behaviour
-- 0004 — Elixir-native monitoring (proposed)
-- 0005 — No host-side agent
-- 0006 — SSH key storage with cloak encryption
-
-When you make a meaningful structural decision, write the next ADR (copy the
-shape of an existing one — Context / Decision / Consequences).
+When you make a meaningful structural decision, write the next ADR: take the
+next free number (check `docs/adr/` — do not trust a hardcoded list), copy the
+shape of an existing one (Context / Decision / Consequences), and add a row to
+`docs/adr/README.md`.
 
 ## Task tracking
 

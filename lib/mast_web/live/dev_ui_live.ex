@@ -21,7 +21,8 @@ defmodule MastWeb.DevUiLive do
      |> assign(:page_title, "UI Showcase")
      |> assign(:width, "full")
      |> assign(:widths, @widths)
-     |> assign(:show_modal?, false)}
+     |> assign(:show_modal?, false)
+     |> assign(:run_log_status, nil)}
   end
 
   @impl true
@@ -34,6 +35,16 @@ defmodule MastWeb.DevUiLive do
 
   @impl true
   def handle_event("close-modal", _, socket), do: {:noreply, assign(socket, :show_modal?, false)}
+
+  @impl true
+  def handle_event("open-run-log", %{"status" => s}, socket)
+      when s in ~w(running done error) do
+    {:noreply, assign(socket, :run_log_status, String.to_existing_atom(s))}
+  end
+
+  @impl true
+  def handle_event("close-run-log", _, socket),
+    do: {:noreply, assign(socket, :run_log_status, nil)}
 
   @impl true
   def render(assigns), do: View.render(assigns)

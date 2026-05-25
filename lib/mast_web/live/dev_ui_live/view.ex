@@ -44,6 +44,10 @@ defmodule MastWeb.DevUiLive.View do
             <.containers_demo show_modal?={@show_modal?} />
           </.section>
 
+          <.section title="Run log modal" id="section-run-log">
+            <.run_log_demo status={@run_log_status} />
+          </.section>
+
           <.section title="Navigation" id="section-navigation">
             <.navigation_demo />
           </.section>
@@ -213,6 +217,50 @@ defmodule MastWeb.DevUiLive.View do
         <.ui_button phx-click="close-modal">Confirm</.ui_button>
       </:footer>
     </.ui_modal>
+    """
+  end
+
+  @demo_log [
+    %{id: "1", kind: :stdout, data: "Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease"},
+    %{id: "2", kind: :stdout, data: "Reading package lists... Done"},
+    %{id: "3", kind: :stdout, data: "Calculating upgrade... Done"},
+    %{id: "4", kind: :stdout, data: "The following packages will be upgraded:"},
+    %{id: "5", kind: :stdout, data: "  curl libcurl4 openssl"},
+    %{id: "6", kind: :stderr, data: "W: Some index files failed to download."},
+    %{id: "7", kind: :stdout, data: "Setting up openssl (3.0.2-0ubuntu1.15) ..."},
+    %{id: "8", kind: :stdout, data: "Setting up curl (7.81.0-1ubuntu1.16) ..."}
+  ]
+
+  attr :status, :atom, default: nil
+
+  defp run_log_demo(assigns) do
+    assigns = assign(assigns, :demo_log, @demo_log)
+
+    ~H"""
+    <div class="flex flex-wrap items-center gap-3">
+      <.ui_button phx-click="open-run-log" phx-value-status="running" variant="secondary">
+        Running
+      </.ui_button>
+      <.ui_button phx-click="open-run-log" phx-value-status="done" variant="secondary">
+        Completed
+      </.ui_button>
+      <.ui_button phx-click="open-run-log" phx-value-status="error" variant="secondary">
+        Failed
+      </.ui_button>
+    </div>
+
+    <.ui_run_log_modal
+      :if={@status}
+      id="dev-run-log"
+      title="Applying Updates — web-prod-1"
+      status={@status}
+      empty?={false}
+      on_close={JS.push("close-run-log")}
+    >
+      <.ui_log_entry :for={e <- @demo_log} kind={e.kind}>{e.data}</.ui_log_entry>
+      <.ui_log_entry :if={@status == :done} kind={:exit}>exit 0 (success)</.ui_log_entry>
+      <.ui_log_entry :if={@status == :error} kind={:error}>exit 100 (failed)</.ui_log_entry>
+    </.ui_run_log_modal>
     """
   end
 

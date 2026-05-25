@@ -59,7 +59,14 @@ A run that lists the Patches currently available on a Server
 _Avoid_: check, poll (for this specific action)
 
 **Apply**:
-A run that installs one or more Patches on a Server. Mutating.
+A run that installs one or more Patches on a Server. Mutating. Today an
+Apply runs `apt-get upgrade`, whose reachable scope excludes Patches that
+would require installing or removing other packages (apt "keeps them
+back" — typically kernel meta-packages). Such Patches remain Patches: a
+Scan still lists them, and a following Apply still leaves them. "Kept
+back" is not a property of the Patch; it is the boundary of this Apply's
+reach. A fuller Apply (`dist-upgrade`) is a deferred, separate decision
+(see GitHub issue), not a second noun.
 _Avoid_: update (verb), upgrade (verb), install
 
 **Private Key**:

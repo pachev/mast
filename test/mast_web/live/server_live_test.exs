@@ -5,6 +5,7 @@ defmodule MastWeb.ServerLiveTest do
   import Phoenix.LiveViewTest
 
   alias Mast.Fleet
+  alias Mast.Patches.Runs
   alias Mast.Workers.ApplyUpdates
 
   describe "show" do
@@ -85,6 +86,53 @@ defmodule MastWeb.ServerLiveTest do
         worker: ApplyUpdates,
         args: %{"server_id" => server.id, "scope" => "all"}
       )
+    end
+
+    test "applying opens the run-log modal in a running state", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "modal-open", host: "10.0.0.12"})
+      {:ok, server} = Fleet.update_server_meta(server, %{package_manager: "apt"})
+
+      {:ok, _} =
+        Fleet.record_scan(server, %{
+          updates_available: 1,
+          last_scan: %{"total" => 1, "updates" => [%{"package" => "curl"}]}
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/servers/#{server}")
+      html = view |> element("button", "Apply Updates") |> render_click()
+
+      assert html =~ "Applying Updates"
+      assert html =~ "Running"
+    end
+
+    test "reattaches to an in-flight run on mount, hydrating the log", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "reattach", host: "10.0.0.13"})
+
+      {:ok, run} =
+        Runs.start_run(%{server_id: server.id, run_id: "rr-1", scope: "all"})
+
+      {:ok, _} = Runs.append(run, ["Reading package lists...", "Setting up curl"])
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+
+      # Modal auto-opens (running) and the stored log is replayed.
+      assert html =~ "Applying Updates"
+      assert html =~ "Running"
+      assert html =~ "Reading package lists..."
+      assert html =~ "Setting up curl"
+    end
+
+    test "does not auto-open the modal for a finished run", %{conn: conn} do
+      {:ok, server} = Fleet.create_server(%{name: "finished-run", host: "10.0.0.14"})
+
+      {:ok, run} =
+        Runs.start_run(%{server_id: server.id, run_id: "fr-1", scope: "all"})
+
+      {:ok, _} = Runs.finish(run, :done, exit_code: 0)
+
+      {:ok, _view, html} = live(conn, ~p"/servers/#{server}")
+
+      refute html =~ "Applying Updates"
     end
 
     test "clicking Scan updates shows a scanning indicator", %{conn: conn} do

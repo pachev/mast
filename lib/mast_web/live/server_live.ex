@@ -7,15 +7,9 @@ defmodule MastWeb.ServerLive do
 
   alias Mast.{Apps, Fleet}
   alias Mast.Fleet.{Projects, Release}
+  alias Mast.Patches.Runs
   alias Mast.Workers.{ApplyUpdates, AppProbe, ConnectionCheck, PatchScan}
-
-  alias MastWeb.ServerLive.{
-    Header,
-    OverviewTab,
-    ReleasesTab,
-    SettingsTab,
-    UpdatesTab
-  }
+  alias MastWeb.ServerLive.View
 
   @tabs ~w(overview releases updates settings)
 
@@ -23,12 +17,17 @@ defmodule MastWeb.ServerLive do
   def mount(%{"id" => id}, _session, socket) do
     server = Fleet.get_server!(id)
 
-    run_id = generate_run_id()
-    topic = "runs:#{run_id}"
+    # Reattach to the last run (if any) so a reloaded page picks up an
+    # in-flight apply: same topic, replayed log, modal reopened if running.
+    # Reattach to the last run only on the connected mount: the static HTTP
+    # render is throwaway, so there's no point reading the run row (and
+    # splitting its log) twice. See AGENTS.md "Guard expensive mount work".
+    run = if connected?(socket), do: Runs.get_for_server(server.id)
+    run_id = if run, do: run.run_id, else: generate_run_id()
 
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Mast.PubSub, "servers")
-      Phoenix.PubSub.subscribe(Mast.PubSub, topic)
+      Phoenix.PubSub.subscribe(Mast.PubSub, "runs:#{run_id}")
     end
 
     {:ok,
@@ -37,7 +36,8 @@ defmodule MastWeb.ServerLive do
      |> assign(:server, server)
      |> assign(:tab, "overview")
      |> assign(:run_id, run_id)
-     |> assign(:running?, false)
+     |> assign(:running?, run_running?(run))
+     |> assign_run_state(run)
      |> assign(:scanning?, false)
      |> assign(:scan_error, nil)
      |> assign(:probing?, false)
@@ -56,9 +56,48 @@ defmodule MastWeb.ServerLive do
      |> assign(:updates_filter, "")
      |> stream(:log, [])
      |> assign(:log_count, 0)
+     |> hydrate_log(run)
      |> assign(:activity, load_activity(server.id))
      |> assign_series("1h")}
   end
+
+  # Modal/status assigns derived from the (possibly nil) last run. The modal
+  # only auto-opens while a run is still running; finished runs stay closed.
+  defp assign_run_state(socket, run) do
+    socket
+    |> assign(:run_status, run_status(run))
+    |> assign(:run_title, run_title(run, socket.assigns.server))
+    |> assign(:show_run_log?, run_running?(run))
+  end
+
+  defp run_running?(%{status: "running"}), do: true
+  defp run_running?(_), do: false
+
+  defp run_status(%{status: "done"}), do: :done
+  defp run_status(%{status: "error"}), do: :error
+  defp run_status(_), do: :running
+
+  defp run_title(run, server), do: "Applying Updates — #{scope_label(run)}#{server.name}"
+
+  defp scope_label(%{scope: "package", package: pkg}) when is_binary(pkg), do: "#{pkg} on "
+  defp scope_label(_), do: ""
+
+  # Replay a persisted run's log into the :log stream so a reattached page
+  # shows output emitted before this mount. Lines are split back out and
+  # given stable ids; kind is unknown post-persistence, so render as stdout.
+  defp hydrate_log(socket, %{log: log}) when is_binary(log) and log != "" do
+    entries =
+      log
+      |> String.split("\n")
+      |> Enum.with_index(1)
+      |> Enum.map(fn {data, i} -> %{id: i, kind: :stdout, data: data} end)
+
+    socket
+    |> stream(:log, entries)
+    |> assign(:log_count, length(entries))
+  end
+
+  defp hydrate_log(socket, _run), do: socket
 
   defp load_activity(server_id) do
     Mast.Audit.list_for_subject("Server", server_id, 10)
@@ -343,6 +382,10 @@ defmodule MastWeb.ServerLive do
     {:noreply, assign_series(socket, range)}
   end
 
+  def handle_event("close-run-log", _, socket) do
+    {:noreply, assign(socket, :show_run_log?, false)}
+  end
+
   def handle_event("clear_log", _, socket) do
     {:noreply,
      socket
@@ -389,21 +432,30 @@ defmodule MastWeb.ServerLive do
   defp load_project(%{project_id: id}), do: Projects.get_project!(id)
 
   defp enqueue_apply(socket, extra) do
-    args =
-      Map.merge(extra, %{
-        "server_id" => socket.assigns.server.id,
-        "run_id" => socket.assigns.run_id
-      })
+    server = socket.assigns.server
+    # Fresh run id per apply so the topic is unique and a prior run's tail
+    # can't bleed into this one.
+    run_id = generate_run_id()
+    scope = Map.get(extra, "scope", "all")
+    package = Map.get(extra, "package")
 
-    case ApplyUpdates.new(args) |> Oban.insert() do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> assign(:running?, true)
-         |> stream(:log, [], reset: true)
-         |> assign(:log_count, 0)
-         |> put_flash(:info, "Running…")}
+    args = Map.merge(extra, %{"server_id" => server.id, "run_id" => run_id})
 
+    with {:ok, run} <-
+           Runs.start_run(%{server_id: server.id, run_id: run_id, scope: scope, package: package}),
+         {:ok, _job} <- Oban.insert(ApplyUpdates.new(args)) do
+      Phoenix.PubSub.subscribe(Mast.PubSub, "runs:#{run_id}")
+
+      {:noreply,
+       socket
+       |> assign(:run_id, run_id)
+       |> assign(:running?, true)
+       |> assign(:run_status, :running)
+       |> assign(:run_title, run_title(run, server))
+       |> assign(:show_run_log?, true)
+       |> stream(:log, [], reset: true)
+       |> assign(:log_count, 0)}
+    else
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, "Failed to enqueue: #{inspect(reason)}")}
     end
@@ -420,11 +472,13 @@ defmodule MastWeb.ServerLive do
   defp append_event(socket, {:exit, code}) do
     id = socket.assigns.log_count + 1
     label = if code == 0, do: "exit 0 (success)", else: "exit #{code} (failed)"
+    status = if code == 0, do: :done, else: :error
 
     socket
     |> stream_insert(:log, %{id: id, kind: :exit, data: label})
     |> assign(:log_count, id)
     |> assign(:running?, false)
+    |> assign(:run_status, status)
   end
 
   defp append_event(socket, {:error, reason}) do
@@ -434,6 +488,7 @@ defmodule MastWeb.ServerLive do
     |> stream_insert(:log, %{id: id, kind: :error, data: "error: #{inspect(reason)}"})
     |> assign(:log_count, id)
     |> assign(:running?, false)
+    |> assign(:run_status, :error)
   end
 
   defp generate_run_id do
@@ -441,58 +496,5 @@ defmodule MastWeb.ServerLive do
   end
 
   @impl true
-  def render(assigns) do
-    ~H"""
-    <Layouts.app flash={@flash} active="servers" page_title={@server.name}>
-      <Header.detail_header
-        server={@server}
-        tab={@tab}
-        scanning?={@scanning?}
-        running?={@running?}
-        probing?={@probing?}
-        scan_error={@scan_error}
-        project={@project}
-      />
-
-      <%= case @tab do %>
-        <% "overview" -> %>
-          <OverviewTab.render
-            server={@server}
-            apps={@apps}
-            releases={@releases}
-            activity={@activity}
-            range={@range}
-            series={@series}
-            range_since={@range_since}
-            range_until={@range_until}
-            latest_sample={@latest_sample}
-          />
-        <% "releases" -> %>
-          <ReleasesTab.render
-            server={@server}
-            releases={@releases}
-            new_release_changeset={@new_release_changeset}
-          />
-        <% "updates" -> %>
-          <UpdatesTab.render
-            server={@server}
-            scanning?={@scanning?}
-            running?={@running?}
-            scan_error={@scan_error}
-            updates_page={@updates_page}
-            updates_page_size={@updates_page_size}
-            updates_filter={@updates_filter}
-          />
-        <% "settings" -> %>
-          <SettingsTab.render
-            server={@server}
-            confirm_delete?={@confirm_delete?}
-            confirm_name={@confirm_name}
-            projects={@projects}
-            project_form={@project_form}
-          />
-      <% end %>
-    </Layouts.app>
-    """
-  end
+  def render(assigns), do: View.render(assigns)
 end
