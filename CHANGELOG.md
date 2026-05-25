@@ -22,6 +22,38 @@ follows [SemVer](https://semver.org/).
   same transaction.
 - New UI helpers `ui_project_group_header` and `ui_project_badge`
   (`MastWeb.Components.UI.Domain`), with previews on `/dev/ui`.
+- Patch-apply output now streams into a modal with run persistence and
+  reattach. A reloaded page reattaches to an in-flight apply instead of
+  orphaning it (the modal auto-opens only while a run is still running).
+  New `patch_runs` table (one row per server, upsert) with
+  `Mast.Patches.Run` / `Mast.Patches.Runs`; `ApplyUpdates` batches log
+  writes (flush every 25 lines and on close); new `ui_run_log_modal`
+  component plus a `RunLogAutoScroll` hook (ADR 0012). This is the
+  inline Updates-tab surface promised when the server-level Logs tab was
+  removed in 0.6.0.
+- Dev-only component showcase at `/dev/ui` (`DevUiLive`): every `ui_*`
+  component grouped by family with a viewport-width toggle (375 / 414 /
+  768 / 1024 / 1440 / full). Compiled out in `:prod`.
+
+### Changed
+- Responsive sweep across the `ui_*` component suite, which was built
+  desktop-first. The sidebar collapses to a daisyUI drawer plus hamburger
+  below `lg`; `ui_table`, `ui_tabs`, `ui_page_header`, `ui_card`,
+  `ui_modal`, `ui_kv_table`, `ui_release_card`, `ui_audit_row`,
+  `ui_card_title`, and `ui_chart_card` all gained breakpoint handling so
+  tablets and phones no longer truncate text or overflow tables
+  (issue #19).
+- Responsive sweep round 2: adopt `ui_table` where raw `<table>` still
+  lived in page code (settings SSH keys, application top-processes), add
+  `sm` breakpoints to the page-level 4-stat grids (dashboard, server
+  overview, app detail), and adopt `ui_kv_table` for the server-settings
+  Connection block (issue #26).
+- Updates tab flattened to match the Releases tab pattern and the Pencil
+  design: drop the outer `ui_card` wrapper, lift "Available Updates" into
+  a page-level section header, and let `ui_table` be the only card
+  surface. Empty states stay wrapped so `ui_empty` keeps a frame.
+- `ServerLive` render split into `server_live/view.ex` to stay under the
+  ~500 LOC guardrail.
 
 ## [0.6.0] - 2026-05-22
 
